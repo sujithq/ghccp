@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
     "test": "vitest run",
-    "lint:docs": "markdownlint-cli2 \"docs/*.md\"",
+    "lint:docs": "markdownlint-cli2 \"README.md\" \"docs/*.md\"",
     "check": "npm run test && npm run build && npm run lint:docs"
   },
   "dependencies": {
