@@ -1,0 +1,29 @@
+{
+  "name": "copilot-credit-planner",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "lint:docs": "markdownlint-cli2 \"docs/*.md\"",
+    "check": "npm run test && npm run build && npm run lint:docs"
+  },
+  "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.2.6",
+    "lucide-react": "^0.468.0",
+    "mermaid": "^11.12.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "markdownlint-cli2": "^0.18.1",
+    "typescript": "~5.8.3",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4"
+  }
+}
