@@ -1,4 +1,4 @@
-# Copilot Credit Planner
+# GitHub Copilot Credit Planner
 
 An interactive wizard for projecting GitHub Copilot AI credit consumption across individual and managed licenses, shared pools, cost centers, ULBs, paid-usage policies, and scoped spending budgets.
 

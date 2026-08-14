@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { BookOpen, GitBranch, Github, PanelLeft, WandSparkles, X } from "lucide-react";
+import { BookOpen, GitBranch, PanelLeft, WandSparkles, X } from "lucide-react";
 import { DecisionFlow } from "./components/DecisionFlow";
 import { Research } from "./components/Research";
 import { Wizard } from "./components/Wizard";
 
 type View = "wizard" | "flow" | "research";
+
+const appIconUrl = `${import.meta.env.BASE_URL}app-icon.svg`;
 
 export default function App() {
   const [view, setView] = useState<View>("wizard");
@@ -19,8 +21,8 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark"><Github size={22} /></span>
-          <div><strong>Copilot Credit Planner</strong><small>UBB decision workspace</small></div>
+          <span className="brand-mark"><img src={appIconUrl} alt="" /></span>
+          <div><strong>GitHub Copilot Credit Planner</strong><small>UBB decision workspace</small></div>
         </div>
         <nav className={mobileNav ? "topnav open" : "topnav"} aria-label="Primary navigation">
           <button className={view === "wizard" ? "active" : ""} onClick={() => selectView("wizard")}><WandSparkles size={17} /> Wizard</button>

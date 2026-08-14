@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#d0d7de" />
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#f6f8fa" />
+  <rect width="1200" height="630" fill="url(#dots)" opacity="0.65" />
+  <rect width="1200" height="14" fill="#1f2328" />
+
+  <g transform="translate(74 68)">
+    <rect width="64" height="64" rx="14" fill="#1f2328" />
+    <path d="M18 20h17c7 0 11 4 11 11v13" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="6" />
+    <path d="M18 44h12" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="6" />
+    <circle cx="18" cy="20" r="7" fill="#54aeff" />
+    <circle cx="46" cy="44" r="7" fill="#4ac26b" />
+  </g>
+
+  <g font-family="IBM Plex Sans, Segoe UI, sans-serif" letter-spacing="0">
+    <text x="158" y="94" fill="#59636e" font-size="18" font-weight="700">GITHUB COPILOT BILLING</text>
+    <text x="74" y="232" fill="#1f2328" font-size="76" font-weight="700">Copilot Credit</text>
+    <text x="74" y="316" fill="#1f2328" font-size="76" font-weight="700">Planner</text>
+    <text x="78" y="378" fill="#59636e" font-size="25">Model allowances, cost centers,</text>
+    <text x="78" y="414" fill="#59636e" font-size="25">metered usage, and hard stops.</text>
+    <text x="78" y="554" fill="#1f2328" font-size="19" font-weight="700">ghccp.quintelier.dev</text>
+  </g>
+
+  <g transform="translate(765 62)" font-family="IBM Plex Sans, Segoe UI, sans-serif" letter-spacing="0">
+    <rect width="361" height="506" rx="8" fill="#fff" stroke="#b8c0c8" stroke-width="2" />
+    <rect width="361" height="56" rx="8" fill="#1f2328" />
+    <rect y="48" width="361" height="8" fill="#1f2328" />
+    <circle cx="28" cy="28" r="6" fill="#4ac26b" />
+    <text x="46" y="35" fill="#fff" font-size="15" font-weight="700">BALANCED ENTERPRISE</text>
+
+    <text x="28" y="104" fill="#59636e" font-size="14" font-weight="700">MONTHLY CONSUMPTION</text>
+    <text x="28" y="151" fill="#1f2328" font-size="38" font-weight="700">6,000</text>
+    <text x="155" y="151" fill="#59636e" font-size="18">AI credits</text>
+
+    <line x1="28" y1="184" x2="333" y2="184" stroke="#d0d7de" />
+    <text x="28" y="220" fill="#1f2328" font-size="15" font-weight="700">Included pool</text>
+    <text x="333" y="220" fill="#1f2328" font-size="15" font-weight="700" text-anchor="end">3,000</text>
+    <rect x="28" y="235" width="305" height="12" rx="6" fill="#eaeef2" />
+    <rect x="28" y="235" width="183" height="12" rx="6" fill="#0969da" />
+
+    <text x="28" y="289" fill="#1f2328" font-size="15" font-weight="700">Metered usage</text>
+    <text x="333" y="289" fill="#1f2328" font-size="15" font-weight="700" text-anchor="end">2,000</text>
+    <rect x="28" y="304" width="305" height="12" rx="6" fill="#eaeef2" />
+    <rect x="28" y="304" width="122" height="12" rx="6" fill="#bf8700" />
+
+    <text x="28" y="358" fill="#1f2328" font-size="15" font-weight="700">Hard stop</text>
+    <text x="333" y="358" fill="#1f2328" font-size="15" font-weight="700" text-anchor="end">1,000</text>
+    <rect x="28" y="373" width="305" height="12" rx="6" fill="#eaeef2" />
+    <rect x="28" y="373" width="61" height="12" rx="6" fill="#cf222e" />
+
+    <rect x="28" y="425" width="305" height="53" rx="6" fill="#ddf4ff" />
+    <circle cx="52" cy="451" r="7" fill="#1a7f37" />
+    <text x="70" y="457" fill="#0a3069" font-size="14" font-weight="700">Cost center within guardrails</text>
+  </g>
+</svg>

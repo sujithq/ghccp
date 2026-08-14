@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>GitHub Copilot Credit Planner</title>
+  <rect width="64" height="64" rx="14" fill="#1f2328" />
+  <path d="M18 20h17c7 0 11 4 11 11v13" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="6" />
+  <path d="M18 44h12" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="6" />
+  <circle cx="18" cy="20" r="7" fill="#54aeff" />
+  <circle cx="46" cy="44" r="7" fill="#4ac26b" />
+</svg>
