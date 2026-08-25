@@ -89,14 +89,14 @@ describe("simulateScenario", () => {
 
     const result = simulateScenario(config);
 
-    expect(result.costCenterIncludedCapCredits).toBe(95_000);
+    expect(result.costCenterIncludedCapCredits).toBe(57_500);
     expect(result.includedCredits).toBe(5_000);
     expect(result.firstHardStop).toBe("Cost center included-usage cap");
   });
 
   it("uses the lower cost-center headroom before the enterprise limit", () => {
     const config = clonePreset("cost-center");
-    config.managed.costCenter.includedCreditsConsumedByOthers = 95_000;
+    config.managed.costCenter.includedCreditsConsumedByOthers = 57_500;
     config.managed.costCenter.meteredBudget = { limitUsd: 40, spentUsd: 10, stop: true };
     config.managed.enterpriseBudget = { limitUsd: 500, spentUsd: 0, stop: true };
 
@@ -109,7 +109,7 @@ describe("simulateScenario", () => {
   it("lets an excluded cost center ignore enterprise headroom", () => {
     const config = clonePreset("cost-center");
     config.targetCredits = 6_000;
-    config.managed.costCenter.includedCreditsConsumedByOthers = 95_000;
+    config.managed.costCenter.includedCreditsConsumedByOthers = 57_500;
     config.managed.costCenter.excludedFromEnterpriseBudget = true;
     config.managed.costCenter.meteredBudget = { limitUsd: 100, spentUsd: 0, stop: true };
     config.managed.enterpriseBudget = { limitUsd: 0, spentUsd: 0, stop: true };

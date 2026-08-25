@@ -1,6 +1,6 @@
 # GitHub Copilot AI credit decision flow
 
-Research snapshot: 2026-08-14
+Research snapshot: 2026-08-25
 
 ```mermaid
 flowchart TD
@@ -14,7 +14,7 @@ flowchart TD
     FEATURE -- "Yes" --> PLAN
 
     PLAN -- "Annual Pro or Pro+ kept on legacy" --> LEGACY["Use premium requests and model multipliers<br/>AI-credit simulation is not applicable"]
-    LEGACY --> LEGACYEND["At annual term end: automatic downgrade to Free<br/>or move to a monthly UBB plan"]
+    LEGACY --> LEGACYEND["At annual term end: automatic downgrade to Free<br/>unless changed to a monthly UBB plan beforehand"]
 
     PLAN -- "Individual UBB" --> INDPLAN{"Plan allowance"}
     INDPLAN -- "Free or Student" --> INDCUSTOM["Enter account allowance<br/>GitHub does not publish a numeric preset"]
@@ -26,7 +26,9 @@ flowchart TD
     INCCHECK -- "No" --> INDCHOICE{"Next action"}
     INDCHOICE -- "Upgrade" --> INDUPGRADE["Apply larger allowance immediately<br/>Charge only plan-price difference"]
     INDUPGRADE --> INCCHECK
-    INDCHOICE -- "Additional-usage budget" --> INDBUDGET{"Budget covers excess at $0.01/credit?"}
+    INDCHOICE -- "Additional-usage budget" --> INDELIGIBLE{"Eligible to purchase additional credits?<br/>No current or former GitHub Mobile subscription"}
+    INDELIGIBLE -- "Yes" --> INDBUDGET{"Budget covers excess at $0.01/credit?"}
+    INDELIGIBLE -- "No" --> BLOCKIND
     INDBUDGET -- "Yes" --> INDPAID["Usage continues as metered spend"]
     INDBUDGET -- "No or capped" --> BLOCKIND["AI-credit features block<br/>Raise/pay budget or wait for reset"]
     INDCHOICE -- "Wait" --> BLOCKIND
@@ -35,12 +37,14 @@ flowchart TD
     ULB -- "Yes, X exceeds it" --> BLOCKULB["Hard stop at ULB<br/>Pool and spending budgets cannot extend it"]
     ULB -- "No, or X is within it" --> CCPOOL{"Cost center included-usage control applies?"}
 
-    CCPOOL -- "Yes, cap has room" --> POOL["Consume seat-funded included pool"]
-    CCPOOL -- "Yes, cap reached + block" --> BLOCKCCPOOL["Block this cost center at its included cap"]
-    CCPOOL -- "Yes, cap reached + paid overage" --> PAIDPOLICY
-    CCPOOL -- "No" --> POOLCHECK{"Shared pool has credits?"}
-    POOLCHECK -- "Yes" --> POOL
-    POOLCHECK -- "No" --> PAIDPOLICY{"AI credit paid usage policy enabled?"}
+    CCPOOL -- "Yes" --> CCFIRST{"Cost-center cap reached before global pool?"}
+    CCPOOL -- "No" --> POOLCHECK{"Shared pool covers remaining demand?"}
+    CCFIRST -- "No" --> POOLCHECK
+    CCFIRST -- "Yes + block" --> BLOCKCCPOOL["Block this cost center at its included cap"]
+    CCFIRST -- "Yes + paid overage" --> PAIDPOLICY
+    POOLCHECK -- "Enough for X" --> POOL["Consume included pool"]
+    POOLCHECK -- "Empty or partial" --> POOLSHORT["Consume any remaining pool credits"]
+    POOLSHORT --> PAIDPOLICY{"AI credit paid usage policy enabled?"}
     POOL --> SERVED["Request served with no additional charge"]
 
     PAIDPOLICY -- "No" --> BLOCKPOOL["Block until monthly reset<br/>or an admin enables paid usage"]
@@ -65,8 +69,8 @@ flowchart TD
     classDef success fill:#e7f7ed,stroke:#257942,color:#12351f,stroke-width:2px;
     classDef danger fill:#ffebe9,stroke:#cf222e,color:#4a1116,stroke-width:2px;
     classDef paid fill:#eaf2ff,stroke:#0969da,color:#0a3069,stroke-width:2px;
-    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDBUDGET,ULB,CCPOOL,POOLCHECK,PAIDPOLICY,SCOPE,LIMIT decision;
-    class FREEFEATURE,INDINCLUDED,POOL,SERVED,STILLWORKS success;
+    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,CCPOOL,CCFIRST,POOLCHECK,PAIDPOLICY,SCOPE,LIMIT decision;
+    class FREEFEATURE,INDINCLUDED,POOL,POOLSHORT,SERVED,STILLWORKS success;
     class BLOCKIND,BLOCKULB,BLOCKCCPOOL,BLOCKPOOL,BLOCKBUDGET danger;
     class INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,UNCAPPED,METERED paid;
 ```
@@ -77,8 +81,7 @@ flowchart TD
 AI-credit feature
   -> billing model
   -> effective ULB (individual > cost center > universal)
-  -> cost center included-usage control, when present
-  -> shared included pool
+  -> earliest included limit (cost-center cap or shared pool)
   -> paid-usage policy
   -> scoped metered budget + enterprise restriction
   -> served, metered, or blocked

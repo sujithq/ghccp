@@ -51,6 +51,7 @@ function individualScenario(
   config.individual = {
     plan,
     includedCredits,
+    additionalUsageEligible: true,
     additionalUsageBudgetUsd: null,
     additionalUsageSpentUsd: 0,
   };
@@ -230,10 +231,14 @@ function meteredRoute(
       ? "Billing organization"
       : "Neither";
   const entryEdges = scope === "cost-center"
-    ? [edge("CCPOOL", "PAIDPOLICY", "Cap reached + paid overage")]
+    ? [
+        edge("CCPOOL", "CCFIRST", "Applies"),
+        edge("CCFIRST", "PAIDPOLICY", "Yes + paid overage"),
+      ]
     : [
         edge("CCPOOL", "POOLCHECK", "None"),
-        edge("POOLCHECK", "PAIDPOLICY", "No"),
+        edge("POOLCHECK", "POOLSHORT", "No / partial"),
+        edge("POOLSHORT", "PAIDPOLICY"),
       ];
   const limitLabel = outcome === "exhausted"
     ? "Stop on + reached / $0"
@@ -336,7 +341,8 @@ const routeCases: DecisionRouteCase[] = [
       ...individualPrefix,
       edge("INDPLAN", "INCCHECK", "Pro 1,500"),
       edge("INCCHECK", "INDCHOICE", "No"),
-      edge("INDCHOICE", "INDBUDGET", "Pay"),
+      edge("INDCHOICE", "INDELIGIBLE", "Pay"),
+      edge("INDELIGIBLE", "INDBUDGET", "Yes"),
       edge("INDBUDGET", "INDPAID", "Yes"),
     ],
     verify: () => {
@@ -357,7 +363,8 @@ const routeCases: DecisionRouteCase[] = [
       ...individualPrefix,
       edge("INDPLAN", "INCCHECK", "Pro 1,500"),
       edge("INCCHECK", "INDCHOICE", "No"),
-      edge("INDCHOICE", "INDBUDGET", "Pay"),
+      edge("INDCHOICE", "INDELIGIBLE", "Pay"),
+      edge("INDELIGIBLE", "INDBUDGET", "Yes"),
       edge("INDBUDGET", "BLOCKIND", "No"),
     ],
     verify: () => {
@@ -370,6 +377,29 @@ const routeCases: DecisionRouteCase[] = [
         meteredCredits: 500,
         blockedCredits: 500,
         firstHardStop: "Personal additional-usage budget",
+      });
+    },
+  },
+  {
+    name: "a current or former GitHub Mobile subscriber cannot buy additional credits",
+    edges: [
+      ...individualPrefix,
+      edge("INDPLAN", "INCCHECK", "Pro 1,500"),
+      edge("INCCHECK", "INDCHOICE", "No"),
+      edge("INDCHOICE", "INDELIGIBLE", "Pay"),
+      edge("INDELIGIBLE", "BLOCKIND", "No"),
+    ],
+    verify: () => {
+      const config = individualScenario("pro", 1_500, 2_500);
+      config.individual.additionalUsageEligible = false;
+      config.individual.additionalUsageBudgetUsd = 100;
+      expectResult(config, {
+        status: "partial",
+        servedCredits: 1_500,
+        includedCredits: 1_500,
+        meteredCredits: 0,
+        blockedCredits: 1_000,
+        firstHardStop: "Additional credit purchase eligibility",
       });
     },
   },
@@ -417,7 +447,9 @@ const routeCases: DecisionRouteCase[] = [
     name: "a cost-center included cap with room serves included credits",
     edges: [
       ...managedPrefix,
-      edge("CCPOOL", "POOL", "Cap has room"),
+      edge("CCPOOL", "CCFIRST", "Applies"),
+      edge("CCFIRST", "POOLCHECK", "No"),
+      edge("POOLCHECK", "POOL", "Yes"),
       edge("POOL", "SERVED"),
     ],
     verify: () => {
@@ -436,7 +468,8 @@ const routeCases: DecisionRouteCase[] = [
     name: "a reached cost-center included cap blocks when configured",
     edges: [
       ...managedPrefix,
-      edge("CCPOOL", "BLOCKCCPOOL", "Cap reached + block"),
+      edge("CCPOOL", "CCFIRST", "Applies"),
+      edge("CCFIRST", "BLOCKCCPOOL", "Yes + block"),
       edge("BLOCKCCPOOL", "STILLWORKS"),
     ],
     verify: () => {
@@ -454,7 +487,8 @@ const routeCases: DecisionRouteCase[] = [
     name: "paid usage disabled blocks cost-center overage",
     edges: [
       ...managedPrefix,
-      edge("CCPOOL", "PAIDPOLICY", "Cap reached + paid overage"),
+      edge("CCPOOL", "CCFIRST", "Applies"),
+      edge("CCFIRST", "PAIDPOLICY", "Yes + paid overage"),
       edge("PAIDPOLICY", "BLOCKPOOL", "No"),
       edge("BLOCKPOOL", "STILLWORKS"),
     ],
@@ -465,6 +499,32 @@ const routeCases: DecisionRouteCase[] = [
       expectResult(config, {
         status: "blocked",
         servedCredits: 0,
+        blockedCredits: 400,
+        firstHardStop: "AI credit paid usage policy",
+      });
+    },
+  },
+  {
+    name: "a cost-center cap with room still blocks when the shared pool is exhausted",
+    edges: [
+      ...managedPrefix,
+      edge("CCPOOL", "CCFIRST", "Applies"),
+      edge("CCFIRST", "POOLCHECK", "No"),
+      edge("POOLCHECK", "POOLSHORT", "No / partial"),
+      edge("POOLSHORT", "PAIDPOLICY"),
+      edge("PAIDPOLICY", "BLOCKPOOL", "No"),
+      edge("BLOCKPOOL", "STILLWORKS"),
+    ],
+    verify: () => {
+      const config = managedScenario();
+      enableCostCenterIncludedControl(config, 0, "block");
+      config.managed.costCenter.businessSeats = 2;
+      config.managed.sharedPoolConsumedByOthers = 1_000;
+      config.managed.paidUsageEnabled = false;
+      expectResult(config, {
+        status: "blocked",
+        servedCredits: 0,
+        includedCredits: 0,
         blockedCredits: 400,
         firstHardStop: "AI credit paid usage policy",
       });
@@ -492,18 +552,20 @@ const routeCases: DecisionRouteCase[] = [
     edges: [
       ...managedPrefix,
       edge("CCPOOL", "POOLCHECK", "None"),
-      edge("POOLCHECK", "PAIDPOLICY", "No"),
+      edge("POOLCHECK", "POOLSHORT", "No / partial"),
+      edge("POOLSHORT", "PAIDPOLICY"),
       edge("PAIDPOLICY", "BLOCKPOOL", "No"),
       edge("BLOCKPOOL", "STILLWORKS"),
     ],
     verify: () => {
       const config = managedScenario();
-      config.managed.sharedPoolConsumedByOthers = 1_000;
+      config.managed.sharedPoolConsumedByOthers = 800;
       config.managed.paidUsageEnabled = false;
       expectResult(config, {
-        status: "blocked",
-        servedCredits: 0,
-        blockedCredits: 400,
+        status: "partial",
+        servedCredits: 200,
+        includedCredits: 200,
+        blockedCredits: 200,
         firstHardStop: "AI credit paid usage policy",
       });
     },

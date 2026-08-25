@@ -223,11 +223,15 @@ export function Wizard({ initialPresetId }: WizardProps) {
             value={config.managed.allowanceSchedule}
             onChange={(value) => edit((draft) => updateManagedSchedule(draft, value))}
             options={[
-              { value: "promotion", label: "Aug 2026 promo", description: "Existing customers" },
-              { value: "standard", label: "Standard", description: "From Sep 1" },
+              { value: "promotion", label: "Eligible Aug promo", description: "Pre-Jun 1 customers" },
+              { value: "standard", label: "Standard", description: "Default / Sep 1+" },
               { value: "custom", label: "Custom", description: "Account value" },
             ]}
           />
+
+          {config.managed.allowanceSchedule === "promotion" && (
+            <div className="notice warning"><strong>Temporary eligibility</strong><span>3,000 / 7,000 credits apply only to customers already using Copilot before June 1, 2026, through August 31. The September 1 UTC reset uses standard amounts.</span></div>
+          )}
 
           <div className="field-grid four">
             <NumberField label="Business seats" value={config.managed.businessSeats} onChange={(value) => edit((draft) => { draft.managed.businessSeats = value ?? 0; })} />
@@ -400,14 +404,25 @@ export function Wizard({ initialPresetId }: WizardProps) {
     }
 
     if (config.billingRoute === "individual") {
+      const additionalUsageEligible = config.individual.additionalUsageEligible !== false;
       return (
         <>
           <SectionHeading eyebrow="Step 4 of 5" title="Set personal overage controls" description="Included credits are used before the additional-usage budget." />
           <section className="form-section">
-            <div className="field-grid two">
-              <NumberField label="Additional-usage budget" value={config.individual.additionalUsageBudgetUsd} suffix="USD" optional onChange={(value) => edit((draft) => { draft.individual.additionalUsageBudgetUsd = value; })} />
-              <NumberField label="Additional spend to date" value={config.individual.additionalUsageSpentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.individual.additionalUsageSpentUsd = value ?? 0; })} />
-            </div>
+            <Toggle
+              label="Eligible to purchase additional AI credits"
+              checked={additionalUsageEligible}
+              onChange={(checked) => edit((draft) => { draft.individual.additionalUsageEligible = checked; })}
+              description="Turn off if this account subscribes, or has subscribed, through GitHub Mobile on iOS or Android."
+            />
+            {additionalUsageEligible ? (
+              <div className="field-grid two">
+                <NumberField label="Additional-usage budget" value={config.individual.additionalUsageBudgetUsd} suffix="USD" optional onChange={(value) => edit((draft) => { draft.individual.additionalUsageBudgetUsd = value; })} />
+                <NumberField label="Additional spend to date" value={config.individual.additionalUsageSpentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.individual.additionalUsageSpentUsd = value ?? 0; })} />
+              </div>
+            ) : (
+              <div className="notice warning"><strong>Additional purchases unavailable</strong><span>After the included allowance, upgrade the plan or wait for the next reset.</span></div>
+            )}
             <AdvisoryControls config={config} edit={edit} />
           </section>
         </>

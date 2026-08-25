@@ -14,12 +14,12 @@ const baseManaged: ScenarioConfig = {
   targetCredits: 6_000,
   managed: {
     targetLicense: "business",
-    allowanceSchedule: "promotion",
+    allowanceSchedule: "standard",
     businessSeats: 100,
     enterpriseSeats: 0,
-    businessAllowance: 3_000,
-    enterpriseAllowance: 7_000,
-    sharedPoolConsumedByOthers: 250_000,
+    businessAllowance: 1_900,
+    enterpriseAllowance: 3_900,
+    sharedPoolConsumedByOthers: 140_000,
     paidUsageEnabled: true,
     universalUlbUsd: 60,
     individualUlbUsd: null,
@@ -42,6 +42,7 @@ const baseManaged: ScenarioConfig = {
   individual: {
     plan: "pro",
     includedCredits: 1_500,
+    additionalUsageEligible: true,
     additionalUsageBudgetUsd: 25,
     additionalUsageSpentUsd: 0,
   },
@@ -81,7 +82,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     (config) => {
       config.targetCredits = 12_000;
       config.managed.businessSeats = 25;
-      config.managed.sharedPoolConsumedByOthers = 74_000;
+      config.managed.sharedPoolConsumedByOthers = 46_500;
       config.managed.universalUlbUsd = null;
       config.managed.enterpriseBudget = { limitUsd: null, spentUsd: 0, stop: false };
       config.advisory.modelPolicy = "unrestricted";
@@ -95,7 +96,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     (config) => {
       config.targetCredits = 8_000;
       config.managed.businessSeats = 20;
-      config.managed.sharedPoolConsumedByOthers = 59_000;
+      config.managed.sharedPoolConsumedByOthers = 37_000;
       config.managed.paidUsageEnabled = false;
       config.managed.universalUlbUsd = null;
       config.managed.enterpriseBudget = { limitUsd: null, spentUsd: 0, stop: false };
@@ -109,14 +110,14 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
       config.targetCredits = 9_000;
       config.managed.businessSeats = 100;
       config.managed.enterpriseSeats = 20;
-      config.managed.sharedPoolConsumedByOthers = 350_000;
+      config.managed.sharedPoolConsumedByOthers = 178_000;
       config.managed.universalUlbUsd = 80;
       config.managed.costCenter = {
         membership: "direct",
         businessSeats: 20,
         enterpriseSeats: 5,
         includedUsageControl: true,
-        includedCreditsConsumedByOthers: 90_000,
+        includedCreditsConsumedByOthers: 52_500,
         includedCapAction: "meter",
         ulbUsd: 100,
         meteredBudget: { limitUsd: 1_000, spentUsd: 300, stop: true },

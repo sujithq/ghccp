@@ -56,6 +56,7 @@ export interface ManagedConfig {
 export interface IndividualConfig {
   plan: IndividualPlan;
   includedCredits: number;
+  additionalUsageEligible: boolean;
   additionalUsageBudgetUsd: number | null;
   additionalUsageSpentUsd: number;
 }

@@ -79,7 +79,10 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
   const allowance = nonNegative(config.individual.includedCredits);
   const included = Math.min(desired, allowance);
   const needsMetered = Math.max(0, desired - included);
-  const budget = nullableNonNegative(config.individual.additionalUsageBudgetUsd);
+  const additionalUsageEligible = config.individual.additionalUsageEligible !== false;
+  const budget = additionalUsageEligible
+    ? nullableNonNegative(config.individual.additionalUsageBudgetUsd)
+    : null;
   const budgetHeadroomUsd = budget === null
     ? 0
     : Math.max(0, budget - nonNegative(config.individual.additionalUsageSpentUsd));
@@ -96,6 +99,9 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
 
   if ((config.individual.plan === "free" || config.individual.plan === "student") && allowance === 0) {
     warnings.push("GitHub does not publish a numeric Free or Student allowance. Enter the allowance shown in the account.");
+  }
+  if (!additionalUsageEligible) {
+    warnings.push("Additional AI credits cannot be purchased for an account that subscribes, or has subscribed, through GitHub Mobile.");
   }
   if (config.advisory.sessionLimitCredits !== null) {
     warnings.push("A CLI or SDK session limit is soft and can be crossed by the final model response.");
@@ -114,6 +120,8 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
       label: "Additional usage",
       detail: needsMetered === 0
         ? "Not needed"
+        : !additionalUsageEligible
+          ? "Unavailable after a GitHub Mobile subscription"
         : budget === null
           ? "No personal budget configured"
           : `$${budgetHeadroomUsd.toLocaleString()} remaining`,
@@ -124,9 +132,17 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
   return {
     ...baseResult(
       status,
-      blocked > 0 ? "Included allowance or personal budget runs out" : metered > 0 ? "Usage continues with paid credits" : "Usage stays within the plan allowance",
       blocked > 0
-        ? "Upgrade, raise the additional-usage budget, or wait for the next calendar-month reset."
+        ? !additionalUsageEligible && needsMetered > 0
+          ? "Additional credit purchases are unavailable"
+          : "Included allowance or personal budget runs out"
+        : metered > 0
+          ? "Usage continues with paid credits"
+          : "Usage stays within the plan allowance",
+      blocked > 0
+        ? !additionalUsageEligible && needsMetered > 0
+          ? "Upgrade the plan or wait for the next calendar-month reset."
+          : "Upgrade, raise the additional-usage budget, or wait for the next calendar-month reset."
         : metered > 0
           ? "The included allowance is used first; the remainder draws from the personal additional-usage budget."
           : "No additional usage charge is projected.",
@@ -137,7 +153,11 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
     meteredCredits: metered,
     blockedCredits: blocked,
     estimatedAdditionalCostUsd: metered * CREDIT_PRICE_USD,
-    firstHardStop: blocked > 0 ? "Personal additional-usage budget" : null,
+    firstHardStop: blocked > 0
+      ? !additionalUsageEligible && needsMetered > 0
+        ? "Additional credit purchase eligibility"
+        : "Personal additional-usage budget"
+      : null,
     warnings,
     path,
   };

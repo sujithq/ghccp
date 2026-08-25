@@ -9,7 +9,7 @@ export const DECISION_FLOW = `flowchart TD
     FEATURE -- "Yes" --> PLAN
 
     PLAN -- "Legacy annual Pro / Pro+" --> LEGACY["Premium requests + multipliers"]
-    LEGACY --> LEGACYEND["Term end: Free or monthly UBB"]
+    LEGACY --> LEGACYEND["Term end: automatic downgrade to Free<br/>unless changed to monthly UBB"]
 
     PLAN -- "Individual UBB" --> INDPLAN{"Plan allowance"}
     INDPLAN -- "Free / Student" --> INDCUSTOM["Enter account allowance"]
@@ -21,7 +21,9 @@ export const DECISION_FLOW = `flowchart TD
     INCCHECK -- "No" --> INDCHOICE{"Upgrade, pay, or wait?"}
     INDCHOICE -- "Upgrade" --> INDUPGRADE["Larger allowance now"]
     INDUPGRADE --> INCCHECK
-    INDCHOICE -- "Pay" --> INDBUDGET{"Personal budget covers excess?"}
+    INDCHOICE -- "Pay" --> INDELIGIBLE{"Additional credits eligible?<br/>Not current / former Mobile subscriber"}
+    INDELIGIBLE -- "Yes" --> INDBUDGET{"Personal budget covers excess?"}
+    INDELIGIBLE -- "No" --> BLOCKIND
     INDBUDGET -- "Yes" --> INDPAID["Metered usage"]
     INDBUDGET -- "No" --> BLOCKIND["Blocked until budget / reset"]
     INDCHOICE -- "Wait" --> BLOCKIND
@@ -30,12 +32,15 @@ export const DECISION_FLOW = `flowchart TD
     ULB -- "Exceeded" --> BLOCKULB["Hard stop at ULB"]
     ULB -- "Within / none" --> CCPOOL{"Cost center included control?"}
 
-    CCPOOL -- "Cap has room" --> POOL["Consume included pool"]
-    CCPOOL -- "Cap reached + block" --> BLOCKCCPOOL["Block cost center"]
-    CCPOOL -- "Cap reached + paid overage" --> PAIDPOLICY
-    CCPOOL -- "None" --> POOLCHECK{"Shared pool has credits?"}
+    CCPOOL -- "Applies" --> CCFIRST{"Cost-center cap reached before pool?"}
+    CCPOOL -- "None" --> POOLCHECK{"Shared pool covers remaining demand?"}
+    CCFIRST -- "No" --> POOLCHECK
+    CCFIRST -- "Yes + block" --> BLOCKCCPOOL["Block cost center"]
+    CCFIRST -- "Yes + paid overage" --> PAIDPOLICY
     POOLCHECK -- "Yes" --> POOL
-    POOLCHECK -- "No" --> PAIDPOLICY{"Paid usage enabled?"}
+    POOLCHECK -- "No / partial" --> POOLSHORT["Consume any pool remainder"]
+    POOLSHORT --> PAIDPOLICY{"Paid usage enabled?"}
+    POOL["Consume included pool"]
     POOL --> SERVED["Served, no extra charge"]
 
     PAIDPOLICY -- "No" --> BLOCKPOOL["Blocked until reset / policy change"]
@@ -60,7 +65,7 @@ export const DECISION_FLOW = `flowchart TD
     classDef success fill:#dafbe1,stroke:#1a7f37,color:#12351f,stroke-width:2px;
     classDef danger fill:#ffebe9,stroke:#cf222e,color:#4a1116,stroke-width:2px;
     classDef paid fill:#ddf4ff,stroke:#0969da,color:#0a3069,stroke-width:2px;
-    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDBUDGET,ULB,CCPOOL,POOLCHECK,PAIDPOLICY,SCOPE,LIMIT decision;
-    class FREEFEATURE,INDINCLUDED,POOL,SERVED,STILLWORKS success;
+    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,CCPOOL,CCFIRST,POOLCHECK,PAIDPOLICY,SCOPE,LIMIT decision;
+    class FREEFEATURE,INDINCLUDED,POOL,POOLSHORT,SERVED,STILLWORKS success;
     class BLOCKIND,BLOCKULB,BLOCKCCPOOL,BLOCKPOOL,BLOCKBUDGET danger;
     class INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,UNCAPPED,METERED paid;`;

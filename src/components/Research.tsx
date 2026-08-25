@@ -6,6 +6,7 @@ const sources = [
   ["Budgets for usage-based billing", "https://docs.github.com/en/copilot/concepts/billing/budgets-for-usage-based-billing"],
   ["Optimizing budget configuration", "https://docs.github.com/en/copilot/tutorials/budgets/optimizing-your-budget-configuration"],
   ["Billing for individuals", "https://docs.github.com/en/copilot/concepts/billing/usage-based-billing-for-individuals"],
+  ["Plans for GitHub Copilot", "https://docs.github.com/en/copilot/concepts/billing/individual-plans"],
   ["Models and pricing", "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"],
   ["Legacy billing changes", "https://docs.github.com/en/copilot/reference/copilot-billing/request-based-billing-legacy/what-changed-with-billing"],
 ] as const;
@@ -16,14 +17,14 @@ export function Research() {
       <SectionHeading
         eyebrow="Source notes"
         title="Rules behind the simulator"
-        description="Verified against the current published GitHub Docs and the public github/docs source on August 14, 2026."
+        description="Verified against the current published GitHub Docs and the public github/docs source on August 25, 2026."
       />
 
       <section className="date-banner">
         <CalendarClock />
         <div>
-          <strong>Current transition window</strong>
-          <p>Existing Business and Enterprise customers retain promotional allowances through August 31, 2026. Standard allowances resume September 1.</p>
+          <strong>Promotion ends at the September reset</strong>
+          <p>Only customers already using Copilot before June 1, 2026 retain 3,000 / 7,000 allowances through August 31. Standard amounts apply from September 1 at 00:00 UTC.</p>
         </div>
       </section>
 
@@ -48,7 +49,7 @@ export function Research() {
         <article>
           <span className="research-icon"><ExternalLink /></span>
           <h2>Blocking behavior</h2>
-          <p>ULBs always stop usage. Cost-center, organization, and enterprise budgets only stop with the toggle enabled. There is no automatic cheaper-model fallback.</p>
+          <p>ULBs always stop usage. Other budgets need the stop toggle. There is no cheaper-model fallback, and current or former GitHub Mobile subscribers cannot buy additional credits.</p>
         </article>
       </section>
 
@@ -59,7 +60,7 @@ export function Research() {
         </div>
         <div className="table-scroll">
           <table>
-            <thead><tr><th>License</th><th>Price</th><th>Standard credits</th><th>August 2026</th></tr></thead>
+            <thead><tr><th>License</th><th>Price</th><th>Standard credits</th><th>Eligible Aug 2026 promo</th></tr></thead>
             <tbody>
               <tr><td>Copilot Pro</td><td>$10</td><td>1,500</td><td>1,500</td></tr>
               <tr><td>Copilot Pro+</td><td>$39</td><td>7,000</td><td>7,000</td></tr>
@@ -70,7 +71,7 @@ export function Research() {
             </tbody>
           </table>
         </div>
-        <p className="table-note">* Promotional amount for customers already using Copilot before June 1, 2026.</p>
+        <p className="table-note">* Temporary amount only for customers already using Copilot before June 1, 2026; ends at the September 1 UTC reset.</p>
       </section>
 
       <section className="source-section">

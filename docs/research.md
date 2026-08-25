@@ -1,6 +1,6 @@
 # GitHub Copilot usage-based billing research
 
-Research snapshot: 2026-08-14
+Research snapshot: 2026-08-25
 
 This brief is the source of truth for the wizard. It is based on the current
 published GitHub Docs pages and the matching files on the `main` branch of the
@@ -33,7 +33,10 @@ overridable because allowances, flex allotments, and model prices can change.
 
 Existing Business and Enterprise customers receive promotional allowances from
 June 1 through August 31, 2026: 3,000 credits per Business seat and 7,000 per
-Enterprise seat. Standard allowances resume September 1, 2026.
+Enterprise seat. Eligibility is limited to customers already using Copilot
+before June 1. Standard allowances resume at 00:00:00 UTC on September 1,
+2026. The wizard therefore uses the standard 1,900/3,900 schedule as its
+conservative baseline and keeps the temporary promotion as an explicit choice.
 
 Paid individual plans split included usage into fixed base credits and a
 variable flex allotment. Flex is consumed after base credits and can change as
@@ -73,6 +76,11 @@ completion limit.
 | Model policy | Before model use | Organization or enterprise | Can remove expensive models, but is not a deterministic credit cap |
 | CLI or SDK session limit | During a local response/session | User/session | Soft limit; a model response can cross the configured value |
 
+For individual plans, additional AI credits cannot be purchased if the account
+subscribes, or has subscribed, to a Copilot plan through GitHub Mobile on iOS
+or Android. The wizard treats this as a separate eligibility check before a
+personal additional-usage budget can fund overage.
+
 The **Stop usage when budget limit is reached** option is off by default for
 cost center, organization, and enterprise budgets. Without it, a budget is an
 alert and charges continue beyond the entered amount. ULBs do not have this
@@ -90,10 +98,14 @@ For an AI-credit-consuming request on a Business or Enterprise license:
 1. Resolve the effective ULB: individual, otherwise cost center, otherwise
    universal. If the user reaches it, block immediately. No pool or spending
    budget can extend a ULB.
-2. If a cost center included usage control applies, compare that cost center's
-   usage with its auto-calculated seat-funded cap. At the cap, either block the
-   cost center or route its excess into paid usage, according to its setting.
-3. Otherwise consume the shared included pool while credits remain.
+2. If a cost center included usage control applies, compare its remaining
+  auto-calculated seat-funded cap with the remaining global shared pool. The
+  lower included headroom is reached first. If that is the cost-center cap,
+  either block the cost center or route its excess into paid usage, according
+  to its setting.
+3. Consume the shared included pool while credits remain. A cost center whose
+  own cap has room still enters the paid transition if the global pool is
+  exhausted first.
 4. At the paid transition, check the effective AI credit paid usage policy. If
    disabled, block until reset or an administrator changes the policy.
 5. If paid usage is allowed, route metered spend through the applicable cost
@@ -129,11 +141,17 @@ administrator raises the relevant limit.
 - **Cost center included cap with paid overage:** excess becomes metered usage,
   subject to paid policy, the cost center budget, and normally the enterprise
   budget.
+- **Cost center cap has room but global pool is exhausted:** consume any global
+  pool remainder, then apply paid policy and metered budgets. Cost-center cap
+  headroom cannot create additional included credits.
 - **Legacy annual Pro/Pro+:** AI credit outcomes are not applicable; premium
-  requests and model multipliers remain controlling until the term ends.
+  requests and model multipliers remain controlling until the term ends. The
+  account automatically downgrades to Copilot Free unless the user changes to
+  a monthly paid plan beforehand.
 - **Individual UBB:** consume included allowance first, then upgrade, configure
   an additional-usage budget, or wait for reset. An exhausted or capped
-  additional-usage budget blocks further AI-credit usage.
+  additional-usage budget blocks further AI-credit usage. Accounts that have
+  subscribed through GitHub Mobile cannot purchase additional credits.
 
 ## Calculation model used by the wizard
 
