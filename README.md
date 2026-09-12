@@ -17,7 +17,17 @@ Open `http://127.0.0.1:5173/` when Vite starts.
 npm run check
 ```
 
-This runs the simulator tests, TypeScript production build, and Markdown linting. The billing research and decision-flow source are in `docs/` and were last verified against GitHub Docs on August 14, 2026.
+This runs the simulator tests, TypeScript production build, and Markdown linting. Billing rules were checked against GitHub Docs on September 12, 2026; [research notes](docs/research.md) distinguish documented rules from forecast assumptions. The app renders the Mermaid block from [the decision-flow document](docs/decision-flow.md) directly, and route tests cover every edge.
+
+## Forecast contract
+
+The planner projects partial monthly funding, not all-or-nothing request authorization. With 100 credits desired, 60 included, and paid usage disabled, it projects 60 funded and 40 blocked. Previews do not change balances or execute real work.
+
+Personal additional usage requires an explicit account authorization input. An authorized account can have a hard-stop budget, an alert-only budget, or no configured budget cap; payment and service limits can still apply. Existing saved scenarios retain hard enforcement, and older scenarios with no personal budget require authorization to be reconfirmed. Subscription history is not used to infer authorization.
+
+GitHub's documentation conflicts on USD 0 spending budgets. The planner conservatively treats zero as a hard stop even with Stop usage off, and displays a warning when this affects paid demand. Positive alert-only budgets add no cap; real notifications require opt-in. Use active ULB overrides and spend tracked since each budget's creation, excluding the demand being projected.
+
+Access, model eligibility, runtime policy, GitHub Actions charges, special unlicensed code-review attribution, and subscription fees are outside this forecast. The preserved .NET Cost Compass analysis describes a separate product, not this TypeScript implementation.
 
 ## Deploy to GitHub Pages
 

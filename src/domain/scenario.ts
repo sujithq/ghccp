@@ -59,6 +59,7 @@ export interface IndividualConfig {
   additionalUsageEligible: boolean;
   additionalUsageBudgetUsd: number | null;
   additionalUsageSpentUsd: number;
+  additionalUsageStop?: boolean;
 }
 
 export interface AdvisoryControls {

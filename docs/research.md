@@ -2,10 +2,15 @@
 
 Research snapshot: 2026-09-12
 
-This brief is the source of truth for the wizard. It is based on the current
-published GitHub Docs pages and the matching files on the `main` branch of the
-public `github/docs` repository. Product defaults in the app must remain
-overridable because allowances, flex allotments, and model prices can change.
+This brief records source-backed billing rules and explicit forecast assumptions
+for the Credit Planner. Billing rules were rechecked against published GitHub
+Docs on 2026-09-12. The shared [decision flow](decision-flow.md) is rendered by
+the application and covered by executable route tests. Defaults remain editable
+because allowances, flex allotments, and account settings can change.
+
+This app projects partial monthly consumption, not transactional acceptance of
+one incremental request. The separate .NET Cost Compass analysis is preserved
+historical context, not the contract of this TypeScript planner.
 
 ## Terminology and effective date
 
@@ -74,9 +79,9 @@ completion limit.
 | Universal ULB | Included + metered | Every licensed enterprise user | Always |
 | Cost center included usage control | Included pool | One cost center | Auto-sized from its seats; block or move the excess to paid usage |
 | AI credit paid usage policy | Pool exhaustion / paid transition | Organization or enterprise | Disabled means block; enabled is the default for managed plans |
-| Cost center budget | Metered only | Cost center | Hard only with stop enabled; $0 blocks only when stop is enabled |
-| Organization budget | Metered only | Billing organization | Hard only with stop enabled; $0 blocks only when stop is enabled |
-| Enterprise budget | Metered only | Enterprise | Hard only with stop enabled; $0 blocks only when stop is enabled |
+| Cost center budget | Metered only | Cost center | Positive budgets need Stop usage; $0 conservatively assumed hard |
+| Organization budget | Metered only | Billing organization | Positive budgets need Stop usage; $0 conservatively assumed hard |
+| Enterprise budget | Metered only | Enterprise | Positive budgets need Stop usage; $0 conservatively assumed hard |
 | Cost center exclusion | Metered only | Cost center | Removes that cost center's spend from the enterprise cap |
 | Model policy | Before model use | Organization or enterprise | Can remove expensive models, but is not a deterministic credit cap |
 | CLI or SDK session limit | During a local response/session | User/session | Soft limit; a model response can cross the configured value |
@@ -87,45 +92,67 @@ additional usage. The wizard must treat additional-usage authorization as an
 account-provided state rather than a universal Mobile-history rule.
 
 The **Stop usage when budget limit is reached** option is off by default for
-cost center, organization, and enterprise budgets. Without it, a budget is an
-alert and charges continue beyond the entered amount. ULBs do not have this
-toggle because they always stop usage. A missing or alert-only budget imposes
-no cap of its own, but does not override other applicable hard budgets or
-account, payment, and service limits.
+cost center, organization, and enterprise budgets. For positive budgets,
+without it, usage is not capped at the entered amount. ULBs always stop and do
+not have this toggle. A missing or alert-only budget adds no cap of its own,
+but does not override other applicable hard budgets or account, payment, and
+service limits. Notifications require opting in to budget threshold alerts;
+the planner does not send alerts or guarantee their delivery.
+
+**Zero-budget uncertainty:** the Copilot budget reference says any USD 0 budget
+stops usage, while its comparison table and setup guide describe stopping as
+toggle-dependent. The planner conservatively treats USD 0 as a hard stop,
+including with Stop usage off, and warns when this applies to paid demand. This
+assumption is not a verified universal GitHub rule. Enterprise overlap similarly
+follows the explicit higher-level restriction and cost-center exclusion rules,
+not tutorial shorthand that describes the enterprise budget as a fallback only.
+
+Personal accounts have an explicit additional-usage authorization input plus
+hard-stop, alert-only, or no-budget behavior. A missing budget cannot establish
+authorization. An authorized account with no budget has no configured budget
+cap in this forecast, but real additional usage can still be capped by GitHub.
+Older saved scenarios retain hard enforcement; old no-budget scenarios require
+authorization to be reconfirmed before projecting additional usage.
+
+Only active individual ULB overrides belong in a snapshot. When an override
+expires, the cost-center ULB, universal ULB, or no ULB applies. Budget spend
+inputs count usage tracked since that budget's creation in the current cycle,
+excluding demand being projected. Earlier spend is not retroactively covered,
+so a new budget cannot be treated as a cap on the entire month's invoice.
 
 Content exclusion, firewall, indemnity, and feature availability policies are
 important enterprise controls, but they do not change the billing evaluation
 order. The wizard lists model restrictions as an advisory cost control and does
 not treat non-billing policies as monetary caps.
 
-## Evaluation order
+## Projection order
 
-For an AI-credit-consuming request on a Business or Enterprise license:
+For desired monthly AI-credit consumption on a Business or Enterprise license:
 
-1. Resolve the billed identity, licensing organization, and cost-center
-   attribution. Use that same identity for every downstream applicability and
-   entitlement decision.
-2. Resolve the effective ULB: individual, otherwise cost center, otherwise
-   universal. Compare the incremental request with `limit - consumed`. If the
-   request exceeds that headroom, block immediately. No pool or spending budget
-   can extend a ULB.
-3. If a cost center included usage control applies, compare its remaining
-   auto-calculated seat-funded cap with the remaining global shared pool. The
-   lower value is the usable included headroom. Project the included allocation
-   and metered remainder; do not consume either before all gates permit it.
-4. At the paid transition, check the effective AI-credit paid usage policy. If
-   disabled, reject the projection and preserve balances.
-5. If paid usage is allowed, route metered spend through the resolved cost
-   center or billing organization. Users outside those scopes use the
-   enterprise budget.
-6. Enterprise limits also constrain narrower scopes unless a cost center has
-   enterprise-budget exclusion. Every applicable hard limit must cover the
-   complete proposed charge; the lowest remaining headroom blocks first.
-7. After hard checks pass, emit applicable alert-only thresholds. A missing or
-   alert-only budget adds no cap of its own, while other account, payment,
-   service, and applicable hard-budget limits continue to apply.
-8. Accept and allocate the projected included and metered amounts only after
-   every modeled gate permits the request.
+1. Supply the resolved billing identity and cost-center assignment. Documented
+  precedence is direct user, then enterprise team, then licensing organization.
+  Among multiple teams, the earliest-created team applies. The planner does not
+  discover identities or simulate attribution changes within a month.
+2. Limit eligible demand by the active effective ULB: individual, otherwise cost
+  center, otherwise universal. No pool or spending budget can extend it. Keep
+  the within-ULB portion eligible for further funding checks.
+3. Compute included headroom as the lower remaining shared pool and applicable
+  cost-center cap. If a blocking cost-center cap is reached before or alongside
+  the global pool, mark its excess blocked. Otherwise project included funding
+  and demand that could require paid usage.
+4. At the paid transition, check the supplied AI-credit paid usage policy.
+  Disabled means no metered funding, not cancellation of the included portion.
+5. Route paid demand through the resolved cost center or billing organization,
+  otherwise the enterprise budget. Enterprise restrictions also apply unless
+  the cost center has explicit enterprise-budget exclusion.
+6. Project paid funding only up to the lowest applicable hard-budget headroom.
+  Positive alert-only and absent budgets add no cap. Apply the explicit USD 0
+  assumption above, warning when relevant.
+7. Report projected included, metered, and blocked portions. The first hard stop
+  is the control limiting funded monthly consumption, not necessarily the first
+  node visited. A tighter funding budget can stop usage before a larger ULB.
+8. Leave all scenario values unchanged. Repeated previews are deterministic;
+  these aggregates do not guarantee live per-response cutoffs or rollbacks.
 
 There is no automatic fallback to a cheaper model after a budget is exhausted.
 A blocked user stays blocked until the next calendar-month reset or an
@@ -136,13 +163,13 @@ administrator raises the relevant limit.
 - **No ULB, pool available:** AI-credit funding is permitted from the shared
   pool. A heavy user can consume a disproportionate share.
 - **No ULB, pool exhausted, paid usage disabled:** funding blocks at pool
-  exhaustion and projected balances remain unchanged.
+  exhaustion. Any included portion remains in the monthly projection.
 - **No ULB, paid usage enabled, no hard spending budget:** no configured budget
   cap applies; other account, payment, and service limits still apply.
 - **No ULB, paid usage enabled, hard spending budget:** metered funding is
-  permitted only while every applicable hard budget covers the proposed charge.
+  projected up to the lowest applicable remaining hard-budget headroom.
 - **ULB below desired usage:** that user blocks at the ULB even when the pool and
-  spending budgets still have room.
+  spending budgets still have room; the within-ULB portion can still be funded.
 - **ULB above desired usage, pool available:** funding is permitted from the
   pool.
 - **ULB above desired usage, pool exhausted:** paid policy and scoped spending
@@ -162,8 +189,9 @@ administrator raises the relevant limit.
   automatically downgrades to Copilot Free unless the user changes plans first.
 - **Individual UBB:** consume the dated included allowance first, then upgrade,
   request account-authorized additional usage, or wait for the 00:00:00 UTC
-  first-of-month reset. Account, payment, service, and budget enforcement can
-  still limit additional usage.
+  first-of-month reset. An upgrade retains the same total monthly demand and
+  does not reset earlier consumption. Account, payment, service, and budget
+  enforcement can still limit additional usage.
 
 ## Calculation model used by the wizard
 
@@ -184,11 +212,18 @@ cost center included cap = cost center business seats * business allowance
                          + cost center enterprise seats * enterprise allowance
 ```
 
-For cost center included controls, the simulator separates credits projected for
-paid overage from demand that would draw from the global pool. It compares the
-resulting projected metered dollars with every applicable hard-stop budget. It
-reports projection risk when ordering among users would determine who gets the
-last remaining pooled credits.
+For cost center included controls, the simulator separates demand for included
+and metered funding. It limits the metered portion by applicable budget headroom
+instead of rejecting the entire monthly demand. For example, 100 desired credits
+with 60 included and paid usage off projects 60 funded and 40 blocked. A USD 0.20
+hard budget with paid usage on allows 20 metered credits, leaving 20 blocked.
+
+Pool consumption inputs exclude the target user's total monthly demand. Metered
+spend inputs similarly exclude demand being projected to avoid double counting.
+The planner does not schedule users, replay mid-cycle changes, or predict who
+consumes the last shared credits. GitHub Actions charges, unlicensed or bot-paid
+code-review attribution, live access checks, and subscription fees are outside
+the calculation. Partial forecasts are not guarantees of live billing precision.
 
 All numeric presets are editable. The simulator never invents a Free or Student
 allowance; the user must enter the allowance shown in their account.
@@ -197,9 +232,12 @@ allowance; the user must enter the allowance shown in their account.
 
 Checked 2026-09-12:
 
-- [Usage-based billing for organizations and enterprises](https://docs.github.com/en/copilot/concepts/billing/organizations-and-enterprises/usage-based-billing)
+- [Usage-based billing for organizations and enterprises](https://docs.github.com/en/copilot/concepts/billing-and-usage/organizations-and-enterprises/billing)
 - [Budgets for organizations and enterprises](https://docs.github.com/en/copilot/concepts/billing-and-usage/organizations-and-enterprises/budgets)
 - [Setting up budgets](https://docs.github.com/en/billing/how-tos/set-up-budgets)
+- [Budgets and alerts](https://docs.github.com/en/billing/concepts/budgets-and-alerts)
+- [Cost-center allocation](https://docs.github.com/en/billing/reference/cost-center-allocation)
+- [Code review](https://docs.github.com/en/copilot/concepts/agents/code-review)
 - [Usage-based billing for individuals](https://docs.github.com/en/copilot/concepts/billing-and-usage/individuals/billing)
 - [Plans for GitHub Copilot](https://docs.github.com/en/copilot/get-started/plans)
 - [Viewing and changing your GitHub Copilot plan](https://docs.github.com/en/copilot/how-tos/manage-your-account/view-and-change-your-copilot-plan)

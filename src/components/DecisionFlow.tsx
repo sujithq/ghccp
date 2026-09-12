@@ -51,8 +51,8 @@ export function DecisionFlow() {
     <main className="content-page flow-page">
       <SectionHeading
         eyebrow="Decision map"
-        title="Every route from intent to outcome"
-        description="The evaluated order is feature, billing family, per-user cap, included pool, paid policy, then scoped spending limits."
+        title="Monthly AI-credit funding"
+        description="Projected included, metered, and blocked portions of monthly demand. Access, payment readiness, runtime policy, and Actions charges are outside this forecast."
         aside={
           <button className="button secondary" onClick={downloadSvg} disabled={!svg}>
             <Download size={17} /> Download SVG
@@ -80,14 +80,14 @@ export function DecisionFlow() {
           <GitBranch size={19} />
           <div>
             <strong>Cost-center branch</strong>
-            <p>Direct assignment is the predictable route. Included controls isolate the seat-funded pool; metered budgets govern overage.</p>
+            <p>Attribution is a supplied account snapshot. Active ULBs constrain total demand; included controls and metered budgets then limit funding for the eligible portion.</p>
           </div>
         </section>
         <section>
           <ExternalLink size={19} />
           <div>
             <strong>Control interaction</strong>
-            <p>ULBs always stop. Other budgets only stop when the toggle is enabled; cost-center exclusion bypasses the enterprise cap.</p>
+            <p>ULBs always stop. Positive spending budgets need Stop usage on. For $0, the planner assumes a hard stop despite conflicting GitHub documentation. Alerts require opt-in.</p>
           </div>
         </section>
       </div>

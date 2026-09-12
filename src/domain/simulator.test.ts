@@ -136,4 +136,97 @@ describe("simulateScenario", () => {
     expect(result.status).toBe("legacy");
     expect(result.servedCredits).toBe(0);
   });
+
+  it("uses account authorization without inferring a Mobile subscription restriction", () => {
+    const config = clonePreset("individual-pro");
+    config.individual.additionalUsageEligible = false;
+
+    const result = simulateScenario(config);
+
+    expect(result.status).toBe("partial");
+    expect(result.includedCredits).toBe(1_500);
+    expect(result.meteredCredits).toBe(0);
+    expect(result.firstHardStop).toBe("Additional usage authorization");
+    expect(result.warnings).toContain("Additional usage is not authorized for this account. Confirm eligibility, payment status, and account limits with GitHub.");
+    expect(JSON.stringify(result)).not.toMatch(/Mobile/i);
+  });
+
+  it.each([
+    { name: "hard budget", limitUsd: 10, stop: true, metered: 500, blocked: 500, uncapped: false },
+    { name: "alert-only budget", limitUsd: 10, stop: false, metered: 1_000, blocked: 0, uncapped: true },
+    { name: "no budget", limitUsd: null, stop: true, metered: 1_000, blocked: 0, uncapped: true },
+    { name: "legacy hard budget", limitUsd: 10, stop: undefined, metered: 500, blocked: 500, uncapped: false },
+  ])("models authorized individual overage with $name", ({ limitUsd, stop, metered, blocked, uncapped }) => {
+    const config = clonePreset("individual-pro");
+    config.individual.additionalUsageBudgetUsd = limitUsd;
+    config.individual.additionalUsageSpentUsd = 5;
+    config.individual.additionalUsageStop = stop;
+
+    const result = simulateScenario(config);
+
+    expect(result.meteredCredits).toBe(metered);
+    expect(result.blockedCredits).toBe(blocked);
+    expect(result.estimatedAdditionalCostUsd).toBe(metered * 0.01);
+    expect(result.uncappedMeteredExposure).toBe(uncapped);
+    if (uncapped) expect(result.warnings.join(" ")).toContain("account, payment, and service limits");
+    if (stop === false) expect(result.warnings.join(" ")).toContain("notifications require opt-in");
+  });
+
+  it("does not infer account authorization from a missing personal budget", () => {
+    const config = clonePreset("individual-pro");
+    config.individual.additionalUsageBudgetUsd = null;
+    Reflect.deleteProperty(config.individual, "additionalUsageEligible");
+
+    const result = simulateScenario(config);
+
+    expect(result.meteredCredits).toBe(0);
+    expect(result.uncappedMeteredExposure).toBe(false);
+    expect(result.firstHardStop).toBe("Additional usage authorization");
+  });
+
+  it("qualifies the conservative zero-budget assumption for individual overage", () => {
+    const config = clonePreset("individual-pro");
+    config.individual.additionalUsageBudgetUsd = 0;
+    config.individual.additionalUsageStop = false;
+
+    const result = simulateScenario(config);
+
+    expect(result.meteredCredits).toBe(0);
+    expect(result.firstHardStop).toBe("Personal additional-usage budget");
+    expect(result.warnings.join(" ")).toContain("conservatively assumes a hard stop");
+    expect(result.warnings.join(" ")).toContain("GitHub documentation conflicts");
+  });
+
+  it("qualifies zero budgets only when they apply to projected paid usage", () => {
+    const config = clonePreset("no-guardrails");
+    config.managed.enterpriseBudget = { limitUsd: 0, spentUsd: 0, stop: false };
+
+    const result = simulateScenario(config);
+
+    expect(result.meteredCredits).toBe(0);
+    expect(result.firstHardStop).toBe("Enterprise budget");
+    expect(result.warnings.join(" ")).toContain("GitHub documentation conflicts");
+
+    config.managed.costCenter.membership = "direct";
+    config.managed.costCenter.excludedFromEnterpriseBudget = true;
+    const excluded = simulateScenario(config);
+    expect(excluded.meteredCredits).toBe(11_000);
+    expect(excluded.warnings.join(" ")).not.toContain("GitHub documentation conflicts");
+  });
+
+  it("forecasts partial monthly consumption without mutating the scenario", () => {
+    const config = clonePreset("no-guardrails");
+    config.targetCredits = 100;
+    config.managed.businessSeats = 1;
+    config.managed.businessAllowance = 100;
+    config.managed.sharedPoolConsumedByOthers = 40;
+    config.managed.paidUsageEnabled = false;
+    const baseline = structuredClone(config);
+
+    const result = simulateScenario(config);
+
+    expect(result).toMatchObject({ status: "partial", includedCredits: 60, servedCredits: 60, blockedCredits: 40, meteredCredits: 0 });
+    expect(config).toEqual(baseline);
+    expect(simulateScenario(config)).toEqual(result);
+  });
 });

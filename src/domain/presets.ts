@@ -45,6 +45,7 @@ const baseManaged: ScenarioConfig = {
     additionalUsageEligible: true,
     additionalUsageBudgetUsd: 25,
     additionalUsageSpentUsd: 0,
+    additionalUsageStop: true,
   },
   advisory: {
     modelPolicy: "auto",

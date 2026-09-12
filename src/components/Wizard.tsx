@@ -67,7 +67,14 @@ export function Wizard({ initialPresetId }: WizardProps) {
     const stored = localStorage.getItem("copilot-credit-planner-scenario");
     if (!stored) return clonePreset(initialPresetId);
     try {
-      return JSON.parse(stored) as ScenarioConfig;
+      const restored = JSON.parse(stored) as ScenarioConfig;
+      if (restored.individual.additionalUsageStop === undefined) {
+        restored.individual.additionalUsageStop = true;
+        if (restored.individual.additionalUsageBudgetUsd === null) {
+          restored.individual.additionalUsageEligible = false;
+        }
+      }
+      return restored;
     } catch {
       return clonePreset(initialPresetId);
     }
@@ -178,7 +185,7 @@ export function Wizard({ initialPresetId }: WizardProps) {
     if (config.billingRoute === "individual") {
       return (
         <>
-          <SectionHeading eyebrow="Step 2 of 5" title="Set the individual allowance" description="Paid-plan values are current GitHub defaults. Free and Student require the amount shown in the account." />
+          <SectionHeading eyebrow="Step 2 of 5" title="Set the individual allowance" description="Paid-plan base and variable flex totals were checked September 12, 2026. Free and Student have account-specific allowances." />
           <section className="form-section">
             <Segmented<IndividualPlan>
               label="Individual plan"
@@ -366,13 +373,14 @@ export function Wizard({ initialPresetId }: WizardProps) {
                   value={costCenter.meteredBudget.spentUsd}
                   suffix="USD"
                   onChange={(value) => edit((draft) => { draft.managed.costCenter.meteredBudget.spentUsd = value ?? 0; })}
+                  help="Spend tracked by this budget since creation in the current cycle, excluding the demand being projected."
                 />
               </div>
               <Toggle
                 label="Stop usage at cost-center budget"
                 checked={costCenter.meteredBudget.stop}
                 onChange={(checked) => edit((draft) => { draft.managed.costCenter.meteredBudget.stop = checked; })}
-                description="Off means alert-only; charges continue past the entered budget."
+                description="Off means alert-only for positive budgets. For $0, the planner assumes a hard stop; GitHub documentation conflicts."
               />
               <Toggle
                 label="Exclude from enterprise budget"
@@ -404,24 +412,33 @@ export function Wizard({ initialPresetId }: WizardProps) {
     }
 
     if (config.billingRoute === "individual") {
-      const additionalUsageEligible = config.individual.additionalUsageEligible !== false;
+      const additionalUsageEligible = config.individual.additionalUsageEligible === true;
       return (
         <>
           <SectionHeading eyebrow="Step 4 of 5" title="Set personal overage controls" description="Included credits are used before the additional-usage budget." />
           <section className="form-section">
             <Toggle
-              label="Eligible to purchase additional AI credits"
+              label="Additional usage authorized for this account"
               checked={additionalUsageEligible}
               onChange={(checked) => edit((draft) => { draft.individual.additionalUsageEligible = checked; })}
-              description="Turn off if this account subscribes, or has subscribed, through GitHub Mobile on iOS or Android."
+              description="Supplied account state, not inferred from a budget or subscription history. Payment and service limits still apply."
             />
             {additionalUsageEligible ? (
-              <div className="field-grid two">
-                <NumberField label="Additional-usage budget" value={config.individual.additionalUsageBudgetUsd} suffix="USD" optional onChange={(value) => edit((draft) => { draft.individual.additionalUsageBudgetUsd = value; })} />
-                <NumberField label="Additional spend to date" value={config.individual.additionalUsageSpentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.individual.additionalUsageSpentUsd = value ?? 0; })} />
-              </div>
+              <>
+                <div className="field-grid two">
+                  <NumberField label="Additional-usage budget" value={config.individual.additionalUsageBudgetUsd} suffix="USD" optional onChange={(value) => edit((draft) => { draft.individual.additionalUsageBudgetUsd = value; })} help="No configured budget adds no spending cap; it does not authorize additional usage." />
+                  <NumberField label="Additional spend to date" value={config.individual.additionalUsageSpentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.individual.additionalUsageSpentUsd = value ?? 0; })} help="Spend tracked by this budget since creation in the current cycle, excluding the demand being projected." />
+                </div>
+                <Toggle
+                  label="Stop usage at personal budget"
+                  checked={config.individual.additionalUsageStop !== false}
+                  disabled={config.individual.additionalUsageBudgetUsd === null}
+                  onChange={(checked) => edit((draft) => { draft.individual.additionalUsageStop = checked; })}
+                  description="Off means alert-only for positive budgets. For $0, the planner assumes a hard stop; GitHub documentation conflicts."
+                />
+              </>
             ) : (
-              <div className="notice warning"><strong>Additional purchases unavailable</strong><span>After the included allowance, upgrade the plan or wait for the next reset.</span></div>
+              <div className="notice warning"><strong>Additional usage not authorized</strong><span>Only included credits are projected. Further usage requires account authorization, an eligible upgrade, or the next monthly reset.</span></div>
             )}
             <AdvisoryControls config={config} edit={edit} />
           </section>
@@ -456,12 +473,12 @@ export function Wizard({ initialPresetId }: WizardProps) {
               help="Applies to every licensed user unless overridden. Always a hard stop."
             />
             <NumberField
-              label="Individual ULB override"
+              label="Active individual ULB override"
               value={config.managed.individualUlbUsd}
               suffix="USD"
               optional
               onChange={(value) => edit((draft) => { draft.managed.individualUlbUsd = value; })}
-              help="Most specific ULB; overrides cost-center and universal values."
+              help="Only unexpired overrides apply. After expiry, the cost-center or universal ULB applies."
             />
           </div>
 
@@ -477,22 +494,22 @@ export function Wizard({ initialPresetId }: WizardProps) {
             <div className="indented-controls">
               <div className="field-grid two">
                 <NumberField label="Organization budget" value={config.managed.organizationBudget.limitUsd} suffix="USD" optional onChange={(value) => edit((draft) => { draft.managed.organizationBudget.limitUsd = value; })} />
-                <NumberField label="Organization spend to date" value={config.managed.organizationBudget.spentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.managed.organizationBudget.spentUsd = value ?? 0; })} />
+                <NumberField label="Organization spend to date" value={config.managed.organizationBudget.spentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.managed.organizationBudget.spentUsd = value ?? 0; })} help="Spend tracked since budget creation this cycle, excluding the demand being projected." />
               </div>
-              <Toggle label="Stop usage at organization budget" checked={config.managed.organizationBudget.stop} onChange={(checked) => edit((draft) => { draft.managed.organizationBudget.stop = checked; })} description="Off means notification only." />
+              <Toggle label="Stop usage at organization budget" checked={config.managed.organizationBudget.stop} onChange={(checked) => edit((draft) => { draft.managed.organizationBudget.stop = checked; })} description="Off means alert-only for positive budgets. For $0, the planner assumes a hard stop; GitHub documentation conflicts." />
             </div>
           )}
 
           <div className="subsection-divider"><span>Enterprise backstop</span></div>
           <div className="field-grid two">
             <NumberField label="Enterprise metered budget" value={config.managed.enterpriseBudget.limitUsd} suffix="USD" optional onChange={(value) => edit((draft) => { draft.managed.enterpriseBudget.limitUsd = value; })} />
-            <NumberField label="Enterprise spend to date" value={config.managed.enterpriseBudget.spentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.managed.enterpriseBudget.spentUsd = value ?? 0; })} />
+            <NumberField label="Enterprise spend to date" value={config.managed.enterpriseBudget.spentUsd} suffix="USD" onChange={(value) => edit((draft) => { draft.managed.enterpriseBudget.spentUsd = value ?? 0; })} help="Spend tracked since budget creation this cycle, excluding the demand being projected." />
           </div>
           <Toggle
             label="Stop usage at enterprise budget"
             checked={config.managed.enterpriseBudget.stop}
             onChange={(checked) => edit((draft) => { draft.managed.enterpriseBudget.stop = checked; })}
-            description="Off means notification only. The maximum bill also includes license fees."
+            description="Off means alert-only for positive budgets. For $0, the planner assumes a hard stop; GitHub documentation conflicts. License fees are separate."
           />
 
           <AdvisoryControls config={config} edit={edit} />

@@ -20,6 +20,8 @@ interface HardBudget {
   headroomUsd: number;
 }
 
+const NO_HARD_CAP_WARNING = "No configured hard spending cap applies. GitHub account, payment, and service limits can still restrict additional usage.";
+
 function nonNegative(value: number): number {
   return Math.max(0, Number.isFinite(value) ? value : 0);
 }
@@ -44,6 +46,14 @@ function hardBudget(label: string, budget: SpendingBudget): HardBudget | null {
   }
 
   return null;
+}
+
+function spendingBudgetWarnings(label: string, budget: SpendingBudget): string[] {
+  if (budget.limitUsd === null) return [];
+  if (nonNegative(budget.limitUsd) === 0 && !budget.stop) {
+    return [`${label} is $0 with Stop usage off. The planner conservatively assumes a hard stop; GitHub documentation conflicts on this case.`];
+  }
+  return budget.stop ? [] : [`${label} is alert-only; it adds no spending cap. Budget notifications require opt-in.`];
 }
 
 function baseResult(
@@ -79,16 +89,22 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
   const allowance = nonNegative(config.individual.includedCredits);
   const included = Math.min(desired, allowance);
   const needsMetered = Math.max(0, desired - included);
-  const additionalUsageEligible = config.individual.additionalUsageEligible !== false;
-  const budget = additionalUsageEligible
-    ? nullableNonNegative(config.individual.additionalUsageBudgetUsd)
-    : null;
-  const budgetHeadroomUsd = budget === null
+  const additionalUsageEligible = config.individual.additionalUsageEligible === true;
+  const budget: SpendingBudget = {
+    limitUsd: nullableNonNegative(config.individual.additionalUsageBudgetUsd),
+    spentUsd: nonNegative(config.individual.additionalUsageSpentUsd),
+    stop: config.individual.additionalUsageStop !== false,
+  };
+  const personalHardBudget = hardBudget("Personal additional-usage budget", budget);
+  const meteredCapacity = !additionalUsageEligible
     ? 0
-    : Math.max(0, budget - nonNegative(config.individual.additionalUsageSpentUsd));
-  const metered = Math.min(needsMetered, creditsFromUsd(budgetHeadroomUsd));
+    : personalHardBudget
+      ? creditsFromUsd(personalHardBudget.headroomUsd)
+      : Number.POSITIVE_INFINITY;
+  const metered = Math.min(needsMetered, meteredCapacity);
   const served = included + metered;
   const blocked = desired - served;
+  const uncapped = additionalUsageEligible && needsMetered > 0 && personalHardBudget === null;
   const status = blocked > 0
     ? served > 0 ? "partial" : "blocked"
     : metered > 0 ? "metered" : "included";
@@ -100,9 +116,13 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
   if ((config.individual.plan === "free" || config.individual.plan === "student") && allowance === 0) {
     warnings.push("GitHub does not publish a numeric Free or Student allowance. Enter the allowance shown in the account.");
   }
-  if (!additionalUsageEligible) {
-    warnings.push("Additional AI credits cannot be purchased for an account that subscribes, or has subscribed, through GitHub Mobile.");
+  if (!additionalUsageEligible && needsMetered > 0) {
+    warnings.push("Additional usage is not authorized for this account. Confirm eligibility, payment status, and account limits with GitHub.");
   }
+  if (additionalUsageEligible && needsMetered > 0) {
+    warnings.push(...spendingBudgetWarnings("Personal additional-usage budget", budget));
+  }
+  if (uncapped) warnings.push(NO_HARD_CAP_WARNING);
   if (config.advisory.sessionLimitCredits !== null) {
     warnings.push("A CLI or SDK session limit is soft and can be crossed by the final model response.");
   }
@@ -121,11 +141,13 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
       detail: needsMetered === 0
         ? "Not needed"
         : !additionalUsageEligible
-          ? "Unavailable after a GitHub Mobile subscription"
-        : budget === null
-          ? "No personal budget configured"
-          : `$${budgetHeadroomUsd.toLocaleString()} remaining`,
-      tone: blocked > 0 ? "blocked" : needsMetered > 0 ? "active" : "skipped",
+          ? "Not authorized for this account"
+          : personalHardBudget
+            ? `$${personalHardBudget.headroomUsd.toLocaleString()} hard-budget headroom`
+            : budget.limitUsd === null
+              ? "Authorized; no configured spending-budget cap"
+              : `$${budget.limitUsd.toLocaleString()} alert-only budget`,
+      tone: needsMetered === 0 ? "skipped" : blocked > 0 ? "blocked" : uncapped ? "warning" : "active",
     },
   ];
 
@@ -134,17 +156,17 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
       status,
       blocked > 0
         ? !additionalUsageEligible && needsMetered > 0
-          ? "Additional credit purchases are unavailable"
+          ? "Additional usage is not authorized"
           : "Included allowance or personal budget runs out"
         : metered > 0
-          ? "Usage continues with paid credits"
+          ? "Projected usage includes paid credits"
           : "Usage stays within the plan allowance",
       blocked > 0
         ? !additionalUsageEligible && needsMetered > 0
-          ? "Upgrade the plan or wait for the next calendar-month reset."
+          ? "After included credits, further usage requires account authorization, an eligible plan upgrade, or the next calendar-month reset."
           : "Upgrade, raise the additional-usage budget, or wait for the next calendar-month reset."
         : metered > 0
-          ? "The included allowance is used first; the remainder draws from the personal additional-usage budget."
+          ? "The included allowance is projected first, followed by authorized additional usage subject to the configured spending controls."
           : "No additional usage charge is projected.",
       desired,
     ),
@@ -153,9 +175,10 @@ function simulateIndividual(config: ScenarioConfig): SimulationResult {
     meteredCredits: metered,
     blockedCredits: blocked,
     estimatedAdditionalCostUsd: metered * CREDIT_PRICE_USD,
+    uncappedMeteredExposure: uncapped,
     firstHardStop: blocked > 0
       ? !additionalUsageEligible && needsMetered > 0
-        ? "Additional credit purchase eligibility"
+        ? "Additional usage authorization"
         : "Personal additional-usage budget"
       : null,
     warnings,
@@ -177,7 +200,7 @@ function effectiveUlb(config: ScenarioConfig): { credits: number; source: string
   return null;
 }
 
-function managedWarnings(config: ScenarioConfig, needsMetered: boolean, uncapped: boolean): string[] {
+function managedWarnings(config: ScenarioConfig, needsMetered: boolean, uncapped: boolean, budgets: [string, SpendingBudget][]): string[] {
   const managed = config.managed;
   const costCenter = managed.costCenter;
   const warnings: string[] = [];
@@ -186,15 +209,11 @@ function managedWarnings(config: ScenarioConfig, needsMetered: boolean, uncapped
     warnings.push("No ULB is configured, so one user can consume a disproportionate share of the pool.");
   }
   if (needsMetered && uncapped) {
-    warnings.push("Paid usage has no applicable hard spending limit. Metered charges can continue without a cap.");
+    warnings.push(NO_HARD_CAP_WARNING);
   }
-  for (const [label, budget] of [
-    ["Cost center", costCenter.meteredBudget],
-    ["Organization", managed.organizationBudget],
-    ["Enterprise", managed.enterpriseBudget],
-  ] as const) {
-    if (budget.limitUsd !== null && budget.limitUsd > 0 && !budget.stop) {
-      warnings.push(`${label} budget is alert-only because stop usage is off.`);
+  if (needsMetered && managed.paidUsageEnabled) {
+    for (const [label, budget] of budgets) {
+      warnings.push(...spendingBudgetWarnings(label, budget));
     }
   }
   if (costCenter.membership === "organization" || costCenter.membership === "enterprise-team") {
@@ -243,18 +262,19 @@ function simulateManaged(config: ScenarioConfig): SimulationResult {
   const included = Math.min(eligibleAfterIncludedCap, includedAvailability);
   const needsMetered = Math.max(0, eligibleAfterIncludedCap - included);
 
-  const hardBudgets: HardBudget[] = [];
+  const budgets: [string, SpendingBudget][] = [];
   if (hasCostCenter) {
-    const costCenterBudget = hardBudget("Cost center budget", costCenter.meteredBudget);
-    if (costCenterBudget) hardBudgets.push(costCenterBudget);
+    budgets.push(["Cost center budget", costCenter.meteredBudget]);
   } else if (managed.organizationBudgetApplies) {
-    const organizationBudget = hardBudget("Organization budget", managed.organizationBudget);
-    if (organizationBudget) hardBudgets.push(organizationBudget);
+    budgets.push(["Organization budget", managed.organizationBudget]);
   }
   if (!(hasCostCenter && costCenter.excludedFromEnterpriseBudget)) {
-    const enterpriseBudget = hardBudget("Enterprise budget", managed.enterpriseBudget);
-    if (enterpriseBudget) hardBudgets.push(enterpriseBudget);
+    budgets.push(["Enterprise budget", managed.enterpriseBudget]);
   }
+  const hardBudgets = budgets.flatMap(([label, budget]) => {
+    const hard = hardBudget(label, budget);
+    return hard ? [hard] : [];
+  });
   hardBudgets.sort((left, right) => left.headroomUsd - right.headroomUsd);
 
   const meteredCapacity = !managed.paidUsageEnabled
@@ -284,7 +304,7 @@ function simulateManaged(config: ScenarioConfig): SimulationResult {
     ? `${firstHardStop ?? "A hard guardrail"} is reached before the requested monthly consumption can be served.`
     : metered > 0
       ? uncapped
-        ? "The included pool runs out and paid usage continues without an applicable hard spending cap."
+        ? "Projected paid usage has no configured hard spending cap. Account, payment, and service limits are outside this projection."
         : "The included pool is followed by metered usage within every applicable hard budget."
       : "The request is served from included credits without projected metered charges.";
 
@@ -339,7 +359,7 @@ function simulateManaged(config: ScenarioConfig): SimulationResult {
     costCenterIncludedCapCredits: costCenterCap,
     firstHardStop,
     uncappedMeteredExposure: uncapped,
-    warnings: managedWarnings(config, needsMetered > 0, uncapped),
+    warnings: managedWarnings(config, needsMetered > 0, uncapped, budgets),
     path,
   };
 }

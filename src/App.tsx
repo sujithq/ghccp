@@ -29,7 +29,7 @@ export default function App() {
           <button className={view === "flow" ? "active" : ""} onClick={() => selectView("flow")}><GitBranch size={17} /> Decision flow</button>
           <button className={view === "research" ? "active" : ""} onClick={() => selectView("research")}><BookOpen size={17} /> Research</button>
         </nav>
-        <div className="topbar-meta"><span className="freshness-dot" />Docs checked Aug 25, 2026</div>
+        <div className="topbar-meta"><span className="freshness-dot" />Billing checked Sep 12, 2026</div>
         <button className="mobile-menu" onClick={() => setMobileNav((open) => !open)} aria-label={mobileNav ? "Close navigation" : "Open navigation"}>
           {mobileNav ? <X /> : <PanelLeft />}
         </button>

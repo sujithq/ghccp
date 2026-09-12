@@ -51,9 +51,10 @@ function individualScenario(
   config.individual = {
     plan,
     includedCredits,
-    additionalUsageEligible: true,
+    additionalUsageEligible: false,
     additionalUsageBudgetUsd: null,
     additionalUsageSpentUsd: 0,
+    additionalUsageStop: true,
   };
   config.advisory.sessionLimitCredits = null;
   return config;
@@ -233,7 +234,8 @@ function meteredRoute(
   const entryEdges = scope === "cost-center"
     ? [
         edge("CCPOOL", "CCFIRST", "Applies"),
-        edge("CCFIRST", "PAIDPOLICY", "Yes + paid overage"),
+        edge("CCFIRST", "POOLSHORT", "Yes + paid overage"),
+        edge("POOLSHORT", "PAIDPOLICY"),
       ]
     : [
         edge("CCPOOL", "POOLCHECK", "None"),
@@ -241,10 +243,10 @@ function meteredRoute(
         edge("POOLSHORT", "PAIDPOLICY"),
       ];
   const limitLabel = outcome === "exhausted"
-    ? "Stop on + reached / $0"
+    ? "Insufficient"
     : outcome === "uncapped"
-      ? "Absent / stop off"
-      : "Headroom remains";
+      ? "No hard budget"
+      : "Sufficient";
   const terminalNode = outcome === "exhausted"
     ? "BLOCKBUDGET"
     : outcome === "uncapped"
@@ -266,7 +268,7 @@ function meteredRoute(
       const route = meteredScenario(scope, outcome);
       const result = expectResult(route.config, route.expected);
       if (outcome === "uncapped") {
-        expect(result.warnings).toContain(`${route.hardStop.replace(" budget", "")} budget is alert-only because stop usage is off.`);
+        expect(result.warnings).toContain(`${route.hardStop} is alert-only; it adds no spending cap. Budget notifications require opt-in.`);
       }
     },
   };
@@ -342,11 +344,13 @@ const routeCases: DecisionRouteCase[] = [
       edge("INDPLAN", "INCCHECK", "Pro 1,500"),
       edge("INCCHECK", "INDCHOICE", "No"),
       edge("INDCHOICE", "INDELIGIBLE", "Pay"),
-      edge("INDELIGIBLE", "INDBUDGET", "Yes"),
+      edge("INDELIGIBLE", "INDENFORCEMENT", "Yes"),
+      edge("INDENFORCEMENT", "INDBUDGET", "Hard stop"),
       edge("INDBUDGET", "INDPAID", "Yes"),
     ],
     verify: () => {
       const config = individualScenario("pro", 1_500, 2_500);
+      config.individual.additionalUsageEligible = true;
       config.individual.additionalUsageBudgetUsd = 10;
       expectResult(config, {
         status: "metered",
@@ -364,11 +368,13 @@ const routeCases: DecisionRouteCase[] = [
       edge("INDPLAN", "INCCHECK", "Pro 1,500"),
       edge("INCCHECK", "INDCHOICE", "No"),
       edge("INDCHOICE", "INDELIGIBLE", "Pay"),
-      edge("INDELIGIBLE", "INDBUDGET", "Yes"),
+      edge("INDELIGIBLE", "INDENFORCEMENT", "Yes"),
+      edge("INDENFORCEMENT", "INDBUDGET", "Hard stop"),
       edge("INDBUDGET", "BLOCKIND", "No"),
     ],
     verify: () => {
       const config = individualScenario("pro", 1_500, 2_500);
+      config.individual.additionalUsageEligible = true;
       config.individual.additionalUsageBudgetUsd = 5;
       expectResult(config, {
         status: "partial",
@@ -381,7 +387,7 @@ const routeCases: DecisionRouteCase[] = [
     },
   },
   {
-    name: "a current or former GitHub Mobile subscriber cannot buy additional credits",
+    name: "an account without additional-usage authorization retains only included funding",
     edges: [
       ...individualPrefix,
       edge("INDPLAN", "INCCHECK", "Pro 1,500"),
@@ -399,7 +405,7 @@ const routeCases: DecisionRouteCase[] = [
         includedCredits: 1_500,
         meteredCredits: 0,
         blockedCredits: 1_000,
-        firstHardStop: "Additional credit purchase eligibility",
+        firstHardStop: "Additional usage authorization",
       });
     },
   },
@@ -418,17 +424,21 @@ const routeCases: DecisionRouteCase[] = [
         servedCredits: 1_500,
         includedCredits: 1_500,
         blockedCredits: 1_000,
-        firstHardStop: "Personal additional-usage budget",
+        firstHardStop: "Additional usage authorization",
       });
     },
   },
   {
-    name: "an exceeded effective ULB blocks before pool and spending controls",
+    name: "an exceeded effective ULB leaves only the within-ULB portion eligible for funding",
     edges: [
       START,
       FEATURE_YES,
       MANAGED,
       edge("ULB", "BLOCKULB", "Exceeded"),
+      edge("BLOCKULB", "CCPOOL"),
+      edge("CCPOOL", "POOLCHECK", "None"),
+      edge("POOLCHECK", "POOL", "Yes"),
+      edge("POOL", "SERVED"),
       edge("BLOCKULB", "STILLWORKS"),
     ],
     verify: () => {
@@ -470,6 +480,9 @@ const routeCases: DecisionRouteCase[] = [
       ...managedPrefix,
       edge("CCPOOL", "CCFIRST", "Applies"),
       edge("CCFIRST", "BLOCKCCPOOL", "Yes + block"),
+      edge("BLOCKCCPOOL", "POOLCHECK"),
+      edge("POOLCHECK", "POOL", "Yes"),
+      edge("POOL", "SERVED"),
       edge("BLOCKCCPOOL", "STILLWORKS"),
     ],
     verify: () => {
@@ -488,7 +501,8 @@ const routeCases: DecisionRouteCase[] = [
     edges: [
       ...managedPrefix,
       edge("CCPOOL", "CCFIRST", "Applies"),
-      edge("CCFIRST", "PAIDPOLICY", "Yes + paid overage"),
+      edge("CCFIRST", "POOLSHORT", "Yes + paid overage"),
+      edge("POOLSHORT", "PAIDPOLICY"),
       edge("PAIDPOLICY", "BLOCKPOOL", "No"),
       edge("BLOCKPOOL", "STILLWORKS"),
     ],
@@ -570,6 +584,35 @@ const routeCases: DecisionRouteCase[] = [
       });
     },
   },
+  ...([
+    { label: "Alert-only", node: "INDALERT", budget: 5 },
+    { label: "No configured budget", node: "INDNOBUDGET", budget: null },
+  ] as const).map(({ label, node, budget }): DecisionRouteCase => ({
+    name: `authorized individual usage with ${label.toLowerCase()} has no configured hard cap`,
+    edges: [
+      ...individualPrefix,
+      edge("INDPLAN", "INCCHECK", "Pro 1,500"),
+      edge("INCCHECK", "INDCHOICE", "No"),
+      edge("INDCHOICE", "INDELIGIBLE", "Pay"),
+      edge("INDELIGIBLE", "INDENFORCEMENT", "Yes"),
+      edge("INDENFORCEMENT", node, label),
+    ],
+    verify: () => {
+      const config = individualScenario("pro", 1_500, 2_500);
+      config.individual.additionalUsageEligible = true;
+      config.individual.additionalUsageBudgetUsd = budget;
+      config.individual.additionalUsageStop = false;
+      const result = expectResult(config, {
+        status: "metered",
+        includedCredits: 1_500,
+        meteredCredits: 1_000,
+        servedCredits: 2_500,
+        blockedCredits: 0,
+        uncappedMeteredExposure: true,
+      });
+      expect(result.warnings.join(" ")).toContain("account, payment, and service limits");
+    },
+  })),
   ...(["cost-center", "organization", "enterprise"] as const).flatMap((scope) =>
     (["exhausted", "uncapped", "headroom"] as const).map((outcome) =>
       meteredRoute(scope, outcome),

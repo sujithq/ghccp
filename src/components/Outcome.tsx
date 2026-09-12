@@ -44,7 +44,7 @@ export function Outcome({ config, result, compact = false }: OutcomeProps) {
   if (compact) {
     return (
       <aside className={`live-result status-${result.status}`}>
-        <span className="live-kicker">Live outcome</span>
+        <span className="live-kicker">Monthly funding projection</span>
         <strong>{statusLabels[result.status]}</strong>
         <p>{result.headline}</p>
         <div className="mini-bar" aria-label={`${Math.round(servedPercent)} percent served`}>
@@ -52,7 +52,7 @@ export function Outcome({ config, result, compact = false }: OutcomeProps) {
           <span className="metered-bar" style={{ width: `${meteredPercent}%` }} />
         </div>
         <dl>
-          <div><dt>Served</dt><dd>{formatCredits(result.servedCredits)}</dd></div>
+          <div><dt>Funded</dt><dd>{formatCredits(result.servedCredits)}</dd></div>
           <div><dt>Blocked</dt><dd>{formatCredits(result.blockedCredits)}</dd></div>
           <div><dt>Added cost</dt><dd>${result.estimatedAdditionalCostUsd.toFixed(2)}</dd></div>
         </dl>
@@ -63,12 +63,14 @@ export function Outcome({ config, result, compact = false }: OutcomeProps) {
   async function copySummary() {
     const lines = [
       config.name,
+      "Monthly AI-credit funding projection, not a live execution guarantee.",
       `${statusLabels[result.status]}: ${result.headline}`,
       `Desired: ${formatCredits(result.desiredCredits)} credits`,
       `Included: ${formatCredits(result.includedCredits)} credits`,
       `Metered: ${formatCredits(result.meteredCredits)} credits ($${result.estimatedAdditionalCostUsd.toFixed(2)})`,
       `Blocked: ${formatCredits(result.blockedCredits)} credits`,
       result.firstHardStop ? `First hard stop: ${result.firstHardStop}` : "First hard stop: none",
+      ...result.warnings,
     ];
     await navigator.clipboard.writeText(lines.join("\n"));
   }
@@ -105,7 +107,7 @@ export function Outcome({ config, result, compact = false }: OutcomeProps) {
         <section className="allocation-section">
           <div className="allocation-labels">
             <strong>Projected allocation</strong>
-            <span>{Math.round(servedPercent)}% served</span>
+            <span>{Math.round(servedPercent)}% funded</span>
           </div>
           <div className="allocation-bar">
             <span className="included-bar" style={{ width: `${includedPercent}%` }} />
