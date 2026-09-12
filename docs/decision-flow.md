@@ -36,7 +36,8 @@ flowchart TD
     INDBUDGET -- "No" --> BLOCKIND
     INDCHOICE -- "Wait" --> BLOCKIND
 
-    PLAN -- "Business or Enterprise UBB" --> ULB{"Effective ULB exists?<br/>Individual > cost center > universal"}
+    PLAN -- "Business or Enterprise UBB" --> ATTRIBUTION["Resolve billed identity, licensing source, and cost center<br/>Direct user > enterprise team > licensing organization"]
+    ATTRIBUTION --> ULB{"Effective ULB exists?<br/>Individual > cost center > universal"}
     ULB -- "Yes" --> ULBCHECK{"Does X exceed ULB headroom?<br/>Headroom = limit - consumed"}
     ULB -- "No" --> CCPOOL{"Cost center included-usage control applies?"}
     ULBCHECK -- "Yes" --> BLOCKULB["Hard stop at ULB<br/>Pool and spending budgets cannot extend it"]
@@ -56,7 +57,7 @@ flowchart TD
 
     PAIDPOLICY -- "No" --> BLOCKPOOL["Reject projection; allocate 0 credits<br/>Balances remain unchanged"]
     PAIDPOLICY -- "Yes" --> SCOPE{"Applicable metered scope?"}
-    SCOPE -- "Direct cost center" --> CCBUDGET["Apply cost center budget<br/>and enterprise budget unless excluded"]
+    SCOPE -- "Resolved cost center" --> CCBUDGET["Apply applicable cost-center budget<br/>and enterprise budget unless excluded"]
     SCOPE -- "Billing organization" --> ORGBUDGET["Apply organization budget<br/>and higher enterprise restriction"]
     SCOPE -- "Neither" --> ENTBUDGET["Apply enterprise budget"]
 
@@ -89,7 +90,8 @@ flowchart TD
 
 ```text
 AI-credit feature
-  -> billing model
+  -> billing model and billed identity
+  -> licensing source and resolved cost-center attribution
   -> effective ULB (individual > cost center > universal)
   -> remaining included headroom (minimum of shared pool and applicable cost-center cap)
   -> provisional included allocation + metered remainder
@@ -99,6 +101,8 @@ AI-credit feature
   -> accept and allocate only after every applicable gate permits the request
   -> served, metered, or blocked
 ```
+
+Resolve cost-center attribution once from the billed identity and licensing source: direct user assignment, then enterprise-team assignment, then the organization granting the license. Use that same resolved identity for ULB, included-control, spending-budget, and enterprise-exclusion applicability.
 
 A cost center with enterprise-budget exclusion skips the enterprise restriction.
 For all other overlapping hard limits, the complete proposed charge must fit every applicable remaining headroom; the lowest remaining headroom wins. A `$0` spending budget blocks only when configured as a hard stop. Alert-only and missing budgets add no cap of their own; they do not override other account, payment, service, or applicable hard-budget limits.
