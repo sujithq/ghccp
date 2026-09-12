@@ -43,7 +43,7 @@ flowchart TD
     CCPOOL -- "No" --> POOLHEADROOM["Included headroom = shared pool remaining"]
     CCHEADROOM --> CCCOVER{"Does included headroom cover X?"}
     POOLHEADROOM --> POOLCOVER{"Does pool headroom cover X?"}
-    CCCOVER -- "Yes" --> POOL["Consume X included credits"]
+    CCCOVER -- "Yes" --> POOL["Accept and consume X included credits"]
     CCCOVER -- "No + X exceeds cost-center headroom + control blocks" --> BLOCKCCPOOL["Block this cost center at its included cap"]
     CCCOVER -- "No + otherwise" --> POOLSHORT["Project included = minimum of X and included headroom<br/>Metered remainder = X - included"]
     POOLCOVER -- "Yes" --> POOL
@@ -51,7 +51,7 @@ flowchart TD
     POOLSHORT --> PAIDPOLICY{"AI credit paid usage policy enabled?"}
     POOL --> SERVED["Request served with no additional charge"]
 
-    PAIDPOLICY -- "No" --> BLOCKPOOL["Block until monthly reset<br/>or an admin enables paid usage"]
+    PAIDPOLICY -- "No" --> BLOCKPOOL["Reject projection; allocate 0 credits<br/>Balances remain unchanged"]
     PAIDPOLICY -- "Yes" --> SCOPE{"Applicable metered scope?"}
     SCOPE -- "Direct cost center" --> CCBUDGET["Apply cost center budget<br/>and enterprise budget unless excluded"]
     SCOPE -- "Billing organization" --> ORGBUDGET["Apply organization budget<br/>and higher enterprise restriction"]
@@ -60,9 +60,9 @@ flowchart TD
     CCBUDGET --> LIMIT{"Does any applicable hard budget lack headroom<br/>for the complete proposed metered charge?<br/>Headroom = limit - consumed"}
     ORGBUDGET --> LIMIT
     ENTBUDGET --> LIMIT
-    LIMIT -- "Yes" --> BLOCKBUDGET["Block at lowest remaining headroom"]
-    LIMIT -- "No; no hard budget applies" --> UNCAPPED["Usage continues<br/>Budget is alert-only and spend is uncapped"]
-    LIMIT -- "No; hard budgets cover charge" --> METERED["Usage continues at $0.01 per AI credit"]
+    LIMIT -- "Yes" --> BLOCKBUDGET["Reject projection; allocate 0 credits<br/>Balances remain unchanged"]
+    LIMIT -- "No; no hard budget applies" --> UNCAPPED["Accept projected split<br/>Usage continues; budget is alert-only<br/>and spend is uncapped"]
+    LIMIT -- "No; hard budgets cover charge" --> METERED["Accept projected split<br/>Usage continues at $0.01 per AI credit"]
 
     BLOCKULB --> STILLWORKS["Completions and next edit suggestions still work"]
     BLOCKCCPOOL --> STILLWORKS
@@ -74,7 +74,7 @@ flowchart TD
     classDef danger fill:#ffebe9,stroke:#cf222e,color:#4a1116,stroke-width:2px;
     classDef paid fill:#eaf2ff,stroke:#0969da,color:#0a3069,stroke-width:2px;
     class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,ULBCHECK,CCPOOL,CCCOVER,POOLCOVER,PAIDPOLICY,SCOPE,LIMIT decision;
-    class FREEFEATURE,INDINCLUDED,POOL,POOLSHORT,SERVED,STILLWORKS success;
+    class FREEFEATURE,INDINCLUDED,POOL,SERVED,STILLWORKS success;
     class BLOCKIND,BLOCKULB,BLOCKCCPOOL,BLOCKPOOL,BLOCKBUDGET danger;
     class INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,UNCAPPED,METERED paid;
 ```
@@ -89,8 +89,11 @@ AI-credit feature
   -> provisional included allocation + metered remainder
   -> paid-usage policy
   -> complete proposed metered charge against each applicable budget's remaining headroom
+  -> accept and allocate only after every applicable gate permits the request
   -> served, metered, or blocked
 ```
 
 A cost center with enterprise-budget exclusion skips the enterprise restriction.
 For all other overlapping hard limits, the complete proposed charge must fit every applicable remaining headroom; the lowest remaining headroom wins.
+
+For the Business and Enterprise simulator path, the included/metered split is a projection until every modeled gate permits it. A paid-policy or spending-budget rejection accepts zero credits and leaves all balances unchanged. Live work already performed and billed is outside this transactional preview rule.
