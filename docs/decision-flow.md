@@ -4,7 +4,7 @@ Research snapshot: 2026-08-25
 
 ```mermaid
 flowchart TD
-    START(["User wants to consume X AI credits"])
+    START(["User wants to consume X incremental AI credits"])
     FEATURE{"Does the feature consume AI credits?"}
     FREEFEATURE["No AI-credit charge<br/>Completions and next edit suggestions continue"]
     PLAN{"Billing family?"}
@@ -21,29 +21,31 @@ flowchart TD
     INDPLAN -- "Pro: 1,500" --> INCCHECK
     INDPLAN -- "Pro+: 7,000" --> INCCHECK
     INDPLAN -- "Max: 20,000" --> INCCHECK
-    INDCUSTOM --> INCCHECK{"X within included allowance?"}
+    INDCUSTOM --> INCCHECK{"X within remaining included credits?<br/>Remaining = allowance - consumed"}
     INCCHECK -- "Yes" --> INDINCLUDED["Served from included credits"]
     INCCHECK -- "No" --> INDCHOICE{"Next action"}
     INDCHOICE -- "Upgrade" --> INDUPGRADE["Apply larger allowance immediately<br/>Charge only plan-price difference"]
     INDUPGRADE --> INCCHECK
     INDCHOICE -- "Additional-usage budget" --> INDELIGIBLE{"Eligible to purchase additional credits?<br/>No current or former GitHub Mobile subscription"}
-    INDELIGIBLE -- "Yes" --> INDBUDGET{"Budget covers excess at $0.01/credit?"}
+    INDELIGIBLE -- "Yes" --> INDBUDGET{"Remaining hard-budget headroom covers<br/>the complete proposed excess charge?"}
     INDELIGIBLE -- "No" --> BLOCKIND
     INDBUDGET -- "Yes" --> INDPAID["Usage continues as metered spend"]
-    INDBUDGET -- "No or capped" --> BLOCKIND["AI-credit features block<br/>Raise/pay budget or wait for reset"]
+    INDBUDGET -- "No" --> BLOCKIND["AI-credit features block<br/>Raise/pay budget or wait for reset"]
     INDCHOICE -- "Wait" --> BLOCKIND
 
     PLAN -- "Business or Enterprise UBB" --> ULB{"Effective ULB exists?<br/>Individual > cost center > universal"}
-    ULB -- "Yes, X exceeds it" --> BLOCKULB["Hard stop at ULB<br/>Pool and spending budgets cannot extend it"]
-    ULB -- "No, or X is within it" --> CCPOOL{"Cost center included-usage control applies?"}
+    ULB -- "Yes" --> ULBCHECK{"Does X exceed ULB headroom?<br/>Headroom = limit - consumed"}
+    ULB -- "No" --> CCPOOL{"Cost center included-usage control applies?"}
+    ULBCHECK -- "Yes" --> BLOCKULB["Hard stop at ULB<br/>Pool and spending budgets cannot extend it"]
+    ULBCHECK -- "No" --> CCPOOL
 
-    CCPOOL -- "Yes" --> CCFIRST{"Cost-center cap reached before global pool?"}
-    CCPOOL -- "No" --> POOLCHECK{"Shared pool covers remaining demand?"}
-    CCFIRST -- "No" --> POOLCHECK
-    CCFIRST -- "Yes + block" --> BLOCKCCPOOL["Block this cost center at its included cap"]
-    CCFIRST -- "Yes + paid overage" --> PAIDPOLICY
-    POOLCHECK -- "Enough for X" --> POOL["Consume included pool"]
-    POOLCHECK -- "Empty or partial" --> POOLSHORT["Consume any remaining pool credits"]
+    CCPOOL -- "Yes" --> CCHEADROOM["Included headroom = minimum of<br/>shared pool remaining and cost-center cap remaining"]
+    CCPOOL -- "No" --> POOLHEADROOM["Included headroom = shared pool remaining"]
+    CCHEADROOM --> INCSPLIT{"Does included headroom cover X?"}
+    POOLHEADROOM --> INCSPLIT
+    INCSPLIT -- "Yes" --> POOL["Consume X included credits"]
+    INCSPLIT -- "No + cost-center control blocks" --> BLOCKCCPOOL["Block this cost center at its included cap"]
+    INCSPLIT -- "No + overage allowed" --> POOLSHORT["Project included = minimum of X and included headroom<br/>Metered remainder = X - included"]
     POOLSHORT --> PAIDPOLICY{"AI credit paid usage policy enabled?"}
     POOL --> SERVED["Request served with no additional charge"]
 
@@ -53,12 +55,12 @@ flowchart TD
     SCOPE -- "Billing organization" --> ORGBUDGET["Apply organization budget<br/>and higher enterprise restriction"]
     SCOPE -- "Neither" --> ENTBUDGET["Apply enterprise budget"]
 
-    CCBUDGET --> LIMIT{"Any applicable hard limit exhausted?"}
+    CCBUDGET --> LIMIT{"Does any applicable hard budget lack headroom<br/>for the complete proposed metered charge?<br/>Headroom = limit - consumed"}
     ORGBUDGET --> LIMIT
     ENTBUDGET --> LIMIT
-    LIMIT -- "$0 budget or stop enabled + reached" --> BLOCKBUDGET["Block at lowest remaining headroom"]
-    LIMIT -- "Budget absent or stop disabled" --> UNCAPPED["Usage continues<br/>Budget is alert-only and spend is uncapped"]
-    LIMIT -- "Hard budget has room" --> METERED["Usage continues at $0.01 per AI credit"]
+    LIMIT -- "Yes" --> BLOCKBUDGET["Block at lowest remaining headroom"]
+    LIMIT -- "No; no hard budget applies" --> UNCAPPED["Usage continues<br/>Budget is alert-only and spend is uncapped"]
+    LIMIT -- "No; hard budgets cover charge" --> METERED["Usage continues at $0.01 per AI credit"]
 
     BLOCKULB --> STILLWORKS["Completions and next edit suggestions still work"]
     BLOCKCCPOOL --> STILLWORKS
@@ -69,7 +71,7 @@ flowchart TD
     classDef success fill:#e7f7ed,stroke:#257942,color:#12351f,stroke-width:2px;
     classDef danger fill:#ffebe9,stroke:#cf222e,color:#4a1116,stroke-width:2px;
     classDef paid fill:#eaf2ff,stroke:#0969da,color:#0a3069,stroke-width:2px;
-    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,CCPOOL,CCFIRST,POOLCHECK,PAIDPOLICY,SCOPE,LIMIT decision;
+    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,ULBCHECK,CCPOOL,INCSPLIT,PAIDPOLICY,SCOPE,LIMIT decision;
     class FREEFEATURE,INDINCLUDED,POOL,POOLSHORT,SERVED,STILLWORKS success;
     class BLOCKIND,BLOCKULB,BLOCKCCPOOL,BLOCKPOOL,BLOCKBUDGET danger;
     class INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,UNCAPPED,METERED paid;
@@ -81,11 +83,12 @@ flowchart TD
 AI-credit feature
   -> billing model
   -> effective ULB (individual > cost center > universal)
-  -> earliest included limit (cost-center cap or shared pool)
+  -> remaining included headroom (minimum of shared pool and applicable cost-center cap)
+  -> provisional included allocation + metered remainder
   -> paid-usage policy
-  -> scoped metered budget + enterprise restriction
+  -> complete proposed metered charge against each applicable budget's remaining headroom
   -> served, metered, or blocked
 ```
 
 A cost center with enterprise-budget exclusion skips the enterprise restriction.
-For all other overlapping hard limits, the lowest remaining headroom wins.
+For all other overlapping hard limits, the complete proposed charge must fit every applicable remaining headroom; the lowest remaining headroom wins.
