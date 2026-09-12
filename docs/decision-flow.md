@@ -26,11 +26,14 @@ flowchart TD
     INCCHECK -- "No" --> INDCHOICE{"Next action"}
     INDCHOICE -- "Upgrade" --> INDUPGRADE["Apply larger allowance immediately<br/>Charge only plan-price difference"]
     INDUPGRADE --> INCCHECK
-    INDCHOICE -- "Additional-usage budget" --> INDELIGIBLE{"Eligible to purchase additional credits?<br/>No current or former GitHub Mobile subscription"}
-    INDELIGIBLE -- "Yes" --> INDBUDGET{"Remaining hard-budget headroom covers<br/>the complete proposed excess charge?"}
-    INDELIGIBLE -- "No" --> BLOCKIND
+    INDCHOICE -- "Additional usage" --> INDELIGIBLE{"Additional usage authorized for this account?"}
+    INDELIGIBLE -- "No" --> BLOCKIND["AI-credit features block<br/>Authorize additional usage or wait for reset"]
+    INDELIGIBLE -- "Yes" --> INDENFORCEMENT{"Applicable spending-budget enforcement?"}
+    INDENFORCEMENT -- "Hard stop" --> INDBUDGET{"Complete proposed excess charge fits<br/>remaining hard-budget headroom?"}
+    INDENFORCEMENT -- "Alert-only" --> INDALERT["Usage continues as metered spend<br/>Emit any crossed budget alerts"]
+    INDENFORCEMENT -- "No configured budget" --> INDNOBUDGET["No cap from configured spending budgets<br/>Other account, payment, and service limits still apply"]
     INDBUDGET -- "Yes" --> INDPAID["Usage continues as metered spend"]
-    INDBUDGET -- "No" --> BLOCKIND["AI-credit features block<br/>Raise/pay budget or wait for reset"]
+    INDBUDGET -- "No" --> BLOCKIND
     INDCHOICE -- "Wait" --> BLOCKIND
 
     PLAN -- "Business or Enterprise UBB" --> ULB{"Effective ULB exists?<br/>Individual > cost center > universal"}
@@ -61,8 +64,11 @@ flowchart TD
     ORGBUDGET --> LIMIT
     ENTBUDGET --> LIMIT
     LIMIT -- "Yes" --> BLOCKBUDGET["Reject projection; allocate 0 credits<br/>Balances remain unchanged"]
-    LIMIT -- "No; no hard budget applies" --> UNCAPPED["Accept projected split<br/>Usage continues; budget is alert-only<br/>and spend is uncapped"]
-    LIMIT -- "No; hard budgets cover charge" --> METERED["Accept projected split<br/>Usage continues at $0.01 per AI credit"]
+    LIMIT -- "No" --> ALERTCHECK{"Any applicable alert-only budget?"}
+    ALERTCHECK -- "Yes" --> ALERTMETERED["Accept projected split and emit crossed alerts<br/>No cap from alert-only budgets<br/>Other account, payment, and service limits still apply"]
+    ALERTCHECK -- "No" --> HARDCHECK{"Any applicable hard budget?"}
+    HARDCHECK -- "Yes; all cover charge" --> METERED["Accept projected split<br/>Usage continues at $0.01 per AI credit"]
+    HARDCHECK -- "No configured budget" --> NOBUDGET["Accept projected split<br/>No cap from configured spending budgets<br/>Other account, payment, and service limits still apply"]
 
     BLOCKULB --> STILLWORKS["Completions and next edit suggestions still work"]
     BLOCKCCPOOL --> STILLWORKS
@@ -73,10 +79,10 @@ flowchart TD
     classDef success fill:#e7f7ed,stroke:#257942,color:#12351f,stroke-width:2px;
     classDef danger fill:#ffebe9,stroke:#cf222e,color:#4a1116,stroke-width:2px;
     classDef paid fill:#eaf2ff,stroke:#0969da,color:#0a3069,stroke-width:2px;
-    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,ULBCHECK,CCPOOL,CCCOVER,POOLCOVER,PAIDPOLICY,SCOPE,LIMIT decision;
+    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDENFORCEMENT,INDBUDGET,ULB,ULBCHECK,CCPOOL,CCCOVER,POOLCOVER,PAIDPOLICY,SCOPE,LIMIT,ALERTCHECK,HARDCHECK decision;
     class FREEFEATURE,INDINCLUDED,POOL,SERVED,STILLWORKS success;
     class BLOCKIND,BLOCKULB,BLOCKCCPOOL,BLOCKPOOL,BLOCKBUDGET danger;
-    class INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,UNCAPPED,METERED paid;
+    class INDALERT,INDNOBUDGET,INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,ALERTMETERED,METERED,NOBUDGET paid;
 ```
 
 ## Precedence summary
@@ -87,13 +93,14 @@ AI-credit feature
   -> effective ULB (individual > cost center > universal)
   -> remaining included headroom (minimum of shared pool and applicable cost-center cap)
   -> provisional included allocation + metered remainder
-  -> paid-usage policy
-  -> complete proposed metered charge against each applicable budget's remaining headroom
+  -> paid-usage authorization
+  -> every applicable hard spending limit
+  -> alert-only or missing spending-budget result
   -> accept and allocate only after every applicable gate permits the request
   -> served, metered, or blocked
 ```
 
 A cost center with enterprise-budget exclusion skips the enterprise restriction.
-For all other overlapping hard limits, the complete proposed charge must fit every applicable remaining headroom; the lowest remaining headroom wins.
+For all other overlapping hard limits, the complete proposed charge must fit every applicable remaining headroom; the lowest remaining headroom wins. A `$0` spending budget blocks only when configured as a hard stop. Alert-only and missing budgets add no cap of their own; they do not override other account, payment, service, or applicable hard-budget limits.
 
 For the Business and Enterprise simulator path, the included/metered split is a projection until every modeled gate permits it. A paid-policy or spending-budget rejection accepts zero credits and leaves all balances unchanged. Live work already performed and billed is outside this transactional preview rule.
