@@ -74,9 +74,9 @@ completion limit.
 | Universal ULB | Included + metered | Every licensed enterprise user | Always |
 | Cost center included usage control | Included pool | One cost center | Auto-sized from its seats; block or move the excess to paid usage |
 | AI credit paid usage policy | Pool exhaustion / paid transition | Organization or enterprise | Disabled means block; enabled is the default for managed plans |
-| Cost center budget | Metered only | Cost center | Hard only with stop enabled; $0 stops immediately |
-| Organization budget | Metered only | Billing organization | Hard only with stop enabled; $0 stops immediately |
-| Enterprise budget | Metered only | Enterprise | Hard only with stop enabled; $0 stops immediately |
+| Cost center budget | Metered only | Cost center | Hard only with stop enabled; $0 blocks only when stop is enabled |
+| Organization budget | Metered only | Billing organization | Hard only with stop enabled; $0 blocks only when stop is enabled |
+| Enterprise budget | Metered only | Enterprise | Hard only with stop enabled; $0 blocks only when stop is enabled |
 | Cost center exclusion | Metered only | Cost center | Removes that cost center's spend from the enterprise cap |
 | Model policy | Before model use | Organization or enterprise | Can remove expensive models, but is not a deterministic credit cap |
 | CLI or SDK session limit | During a local response/session | User/session | Soft limit; a model response can cross the configured value |
