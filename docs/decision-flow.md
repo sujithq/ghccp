@@ -44,8 +44,8 @@ flowchart TD
     CCHEADROOM --> CCCOVER{"Does included headroom cover X?"}
     POOLHEADROOM --> POOLCOVER{"Does pool headroom cover X?"}
     CCCOVER -- "Yes" --> POOL["Consume X included credits"]
-    CCCOVER -- "No + control blocks" --> BLOCKCCPOOL["Block this cost center at its included cap"]
-    CCCOVER -- "No + overage allowed" --> POOLSHORT["Project included = minimum of X and included headroom<br/>Metered remainder = X - included"]
+    CCCOVER -- "No + X exceeds cost-center headroom + control blocks" --> BLOCKCCPOOL["Block this cost center at its included cap"]
+    CCCOVER -- "No + otherwise" --> POOLSHORT["Project included = minimum of X and included headroom<br/>Metered remainder = X - included"]
     POOLCOVER -- "Yes" --> POOL
     POOLCOVER -- "No" --> POOLSHORT
     POOLSHORT --> PAIDPOLICY{"AI credit paid usage policy enabled?"}
