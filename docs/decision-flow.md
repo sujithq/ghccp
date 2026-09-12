@@ -1,6 +1,6 @@
 # GitHub Copilot AI-credit financial subflow
 
-Research snapshot: 2026-08-25
+Research snapshot: 2026-09-12
 
 This diagram evaluates AI-credit funding only. Access and runtime policy, model availability and eligibility, effective pricing, and workload costing are prerequisites. A permitted funding result does not guarantee that a task executes.
 
@@ -17,14 +17,14 @@ flowchart TD
     FEATURE -- "No" --> FREEFEATURE
     FEATURE -- "Yes" --> PLAN
 
-    PLAN -- "Annual Pro or Pro+ kept on legacy" --> LEGACY["Use premium requests and model multipliers<br/>AI-credit simulation is not applicable"]
-    LEGACY --> LEGACYEND["At annual term end: automatic downgrade to Free<br/>unless changed to a monthly UBB plan beforehand"]
+    PLAN -- "Existing annual Pro or Pro+ legacy cohort" --> LEGACY["Use premium requests and model multipliers<br/>AI-credit simulation is not applicable"]
+    LEGACY --> LEGACYEND["At that legacy annual term end: automatic downgrade to Free<br/>unless changed to a monthly UBB plan beforehand"]
 
-    PLAN -- "Individual UBB" --> INDPLAN{"Plan allowance"}
+    PLAN -- "Individual UBB" --> INDPLAN{"Current monthly allowance<br/>Base + variable flex; checked 2026-09-12"}
     INDPLAN -- "Free or Student" --> INDCUSTOM["Enter account allowance<br/>GitHub does not publish a numeric preset"]
-    INDPLAN -- "Pro: 1,500" --> INCCHECK
-    INDPLAN -- "Pro+: 7,000" --> INCCHECK
-    INDPLAN -- "Max: 20,000" --> INCCHECK
+    INDPLAN -- "Pro total: 1,500<br/>1,000 base + 500 flex" --> INCCHECK
+    INDPLAN -- "Pro+ total: 7,000<br/>3,900 base + 3,100 flex" --> INCCHECK
+    INDPLAN -- "Max total: 20,000<br/>10,000 base + 10,000 flex" --> INCCHECK
     INDCUSTOM --> INCCHECK{"X within remaining included credits?<br/>Remaining = allowance - consumed"}
     INCCHECK -- "Yes" --> INDINCLUDED["AI-credit funding permitted<br/>from included credits"]
     INCCHECK -- "No" --> INDCHOICE{"Next action"}
@@ -114,6 +114,15 @@ prerequisite access, model, pricing, and workload-costing decisions
 - Organization-paid code reviews for users without a Copilot license can use special attribution outside the ordinary included-pool and ULB path.
 - Compass supports its scoped Business and Enterprise September scenarios and workloads. The individual and legacy branches are context only, not implemented Compass paths.
 - Indeterminate, waiting, soft-stop, partially simulated, and unpriced outcomes remain Engine possibilities outside this compact financial subflow.
+
+## Dated individual-plan evidence
+
+Checked 2026-09-12:
+
+- [Usage-based billing for individuals](https://docs.github.com/en/copilot/concepts/billing-and-usage/individuals/billing) publishes the displayed totals as fixed base credits plus a variable flex allotment. Flex can change as AI economics evolve.
+- Individual allowances reset at `00:00:00 UTC` on the first day of each calendar month, independently of the subscription billing date. Unused credits do not carry over.
+- [What changed with Copilot billing (legacy)](https://docs.github.com/en/copilot/reference/copilot-billing/request-based-billing-legacy/what-changed-with-billing) applies only to existing annual Pro and Pro+ subscribers who remained on legacy request-based billing after 2026-06-01; it confirms the automatic downgrade at that annual term's end.
+- The current individual billing, [plans](https://docs.github.com/en/copilot/get-started/plans), and [plan-management](https://docs.github.com/en/copilot/how-tos/manage-your-account/view-and-change-your-copilot-plan) pages checked do not establish a current/former GitHub Mobile exclusion for additional usage. The diagram therefore uses account-specific additional-usage authorization rather than asserting that rule.
 
 Resolve cost-center attribution once from the billed identity and licensing source: direct user assignment, then enterprise-team assignment, then the organization granting the license. Use that same resolved identity for ULB, included-control, spending-budget, and enterprise-exclusion applicability.
 
