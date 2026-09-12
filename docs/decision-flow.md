@@ -41,11 +41,13 @@ flowchart TD
 
     CCPOOL -- "Yes" --> CCHEADROOM["Included headroom = minimum of<br/>shared pool remaining and cost-center cap remaining"]
     CCPOOL -- "No" --> POOLHEADROOM["Included headroom = shared pool remaining"]
-    CCHEADROOM --> INCSPLIT{"Does included headroom cover X?"}
-    POOLHEADROOM --> INCSPLIT
-    INCSPLIT -- "Yes" --> POOL["Consume X included credits"]
-    INCSPLIT -- "No + cost-center control blocks" --> BLOCKCCPOOL["Block this cost center at its included cap"]
-    INCSPLIT -- "No + overage allowed" --> POOLSHORT["Project included = minimum of X and included headroom<br/>Metered remainder = X - included"]
+    CCHEADROOM --> CCCOVER{"Does included headroom cover X?"}
+    POOLHEADROOM --> POOLCOVER{"Does pool headroom cover X?"}
+    CCCOVER -- "Yes" --> POOL["Consume X included credits"]
+    CCCOVER -- "No + control blocks" --> BLOCKCCPOOL["Block this cost center at its included cap"]
+    CCCOVER -- "No + overage allowed" --> POOLSHORT["Project included = minimum of X and included headroom<br/>Metered remainder = X - included"]
+    POOLCOVER -- "Yes" --> POOL
+    POOLCOVER -- "No" --> POOLSHORT
     POOLSHORT --> PAIDPOLICY{"AI credit paid usage policy enabled?"}
     POOL --> SERVED["Request served with no additional charge"]
 
@@ -71,7 +73,7 @@ flowchart TD
     classDef success fill:#e7f7ed,stroke:#257942,color:#12351f,stroke-width:2px;
     classDef danger fill:#ffebe9,stroke:#cf222e,color:#4a1116,stroke-width:2px;
     classDef paid fill:#eaf2ff,stroke:#0969da,color:#0a3069,stroke-width:2px;
-    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,ULBCHECK,CCPOOL,INCSPLIT,PAIDPOLICY,SCOPE,LIMIT decision;
+    class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDBUDGET,ULB,ULBCHECK,CCPOOL,CCCOVER,POOLCOVER,PAIDPOLICY,SCOPE,LIMIT decision;
     class FREEFEATURE,INDINCLUDED,POOL,POOLSHORT,SERVED,STILLWORKS success;
     class BLOCKIND,BLOCKULB,BLOCKCCPOOL,BLOCKPOOL,BLOCKBUDGET danger;
     class INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,UNCAPPED,METERED paid;
