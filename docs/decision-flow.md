@@ -1,14 +1,18 @@
-# GitHub Copilot AI credit decision flow
+# GitHub Copilot AI-credit financial subflow
 
 Research snapshot: 2026-08-25
 
+This diagram evaluates AI-credit funding only. Access and runtime policy, model availability and eligibility, effective pricing, and workload costing are prerequisites. A permitted funding result does not guarantee that a task executes.
+
 ```mermaid
 flowchart TD
+    PREREQS["Prerequisites passed<br/>Access, model, pricing, and workload costing"]
     START(["User wants to consume X incremental AI credits"])
     FEATURE{"Does the feature consume AI credits?"}
     FREEFEATURE["No AI-credit charge<br/>Completions and next edit suggestions continue"]
     PLAN{"Billing family?"}
 
+    PREREQS --> START
     START --> FEATURE
     FEATURE -- "No" --> FREEFEATURE
     FEATURE -- "Yes" --> PLAN
@@ -22,17 +26,17 @@ flowchart TD
     INDPLAN -- "Pro+: 7,000" --> INCCHECK
     INDPLAN -- "Max: 20,000" --> INCCHECK
     INDCUSTOM --> INCCHECK{"X within remaining included credits?<br/>Remaining = allowance - consumed"}
-    INCCHECK -- "Yes" --> INDINCLUDED["Served from included credits"]
+    INCCHECK -- "Yes" --> INDINCLUDED["AI-credit funding permitted<br/>from included credits"]
     INCCHECK -- "No" --> INDCHOICE{"Next action"}
     INDCHOICE -- "Upgrade" --> INDUPGRADE["Apply larger allowance immediately<br/>Charge only plan-price difference"]
     INDUPGRADE --> INCCHECK
     INDCHOICE -- "Additional usage" --> INDELIGIBLE{"Additional usage authorized for this account?"}
-    INDELIGIBLE -- "No" --> BLOCKIND["AI-credit features block<br/>Authorize additional usage or wait for reset"]
+    INDELIGIBLE -- "No" --> BLOCKIND["AI-credit funding blocked<br/>Authorize additional usage or wait for reset"]
     INDELIGIBLE -- "Yes" --> INDENFORCEMENT{"Applicable spending-budget enforcement?"}
     INDENFORCEMENT -- "Hard stop" --> INDBUDGET{"Complete proposed excess charge fits<br/>remaining hard-budget headroom?"}
-    INDENFORCEMENT -- "Alert-only" --> INDALERT["Usage continues as metered spend<br/>Emit any crossed budget alerts"]
-    INDENFORCEMENT -- "No configured budget" --> INDNOBUDGET["No cap from configured spending budgets<br/>Other account, payment, and service limits still apply"]
-    INDBUDGET -- "Yes" --> INDPAID["Usage continues as metered spend"]
+    INDENFORCEMENT -- "Alert-only" --> INDALERT["AI-credit funding permitted as metered spend<br/>Emit any crossed budget alerts"]
+    INDENFORCEMENT -- "No configured budget" --> INDNOBUDGET["AI-credit funding permitted<br/>No cap from configured spending budgets<br/>Other account, payment, and service limits still apply"]
+    INDBUDGET -- "Yes" --> INDPAID["AI-credit funding permitted as metered spend"]
     INDBUDGET -- "No" --> BLOCKIND
     INDCHOICE -- "Wait" --> BLOCKIND
 
@@ -40,7 +44,7 @@ flowchart TD
     ATTRIBUTION --> ULB{"Effective ULB exists?<br/>Individual > cost center > universal"}
     ULB -- "Yes" --> ULBCHECK{"Does X exceed ULB headroom?<br/>Headroom = limit - consumed"}
     ULB -- "No" --> CCPOOL{"Cost center included-usage control applies?"}
-    ULBCHECK -- "Yes" --> BLOCKULB["Hard stop at ULB<br/>Pool and spending budgets cannot extend it"]
+    ULBCHECK -- "Yes" --> BLOCKULB["AI-credit funding blocked at ULB<br/>Pool and spending budgets cannot extend it"]
     ULBCHECK -- "No" --> CCPOOL
 
     CCPOOL -- "Yes" --> CCHEADROOM["Included headroom = minimum of<br/>shared pool remaining and cost-center cap remaining"]
@@ -48,12 +52,12 @@ flowchart TD
     CCHEADROOM --> CCCOVER{"Does included headroom cover X?"}
     POOLHEADROOM --> POOLCOVER{"Does pool headroom cover X?"}
     CCCOVER -- "Yes" --> POOL["Accept and consume X included credits"]
-    CCCOVER -- "No + X exceeds cost-center headroom + control blocks" --> BLOCKCCPOOL["Block this cost center at its included cap"]
+    CCCOVER -- "No + X exceeds cost-center headroom + control blocks" --> BLOCKCCPOOL["AI-credit funding blocked<br/>at this cost center's included cap"]
     CCCOVER -- "No + otherwise" --> POOLSHORT["Project included = minimum of X and included headroom<br/>Metered remainder = X - included"]
     POOLCOVER -- "Yes" --> POOL
     POOLCOVER -- "No" --> POOLSHORT
     POOLSHORT --> PAIDPOLICY{"AI credit paid usage policy enabled?"}
-    POOL --> SERVED["Request served with no additional charge"]
+    POOL --> FUNDING["AI-credit funding permitted<br/>No additional AI-credit charge"]
 
     PAIDPOLICY -- "No" --> BLOCKPOOL["Reject projection; allocate 0 credits<br/>Balances remain unchanged"]
     PAIDPOLICY -- "Yes" --> SCOPE{"Applicable metered scope?"}
@@ -66,10 +70,10 @@ flowchart TD
     ENTBUDGET --> LIMIT
     LIMIT -- "Yes" --> BLOCKBUDGET["Reject projection; allocate 0 credits<br/>Balances remain unchanged"]
     LIMIT -- "No" --> ALERTCHECK{"Any applicable alert-only budget?"}
-    ALERTCHECK -- "Yes" --> ALERTMETERED["Accept projected split and emit crossed alerts<br/>No cap from alert-only budgets<br/>Other account, payment, and service limits still apply"]
+    ALERTCHECK -- "Yes" --> ALERTMETERED["AI-credit funding permitted for projected split<br/>Emit crossed alerts; no cap from alert-only budgets<br/>Other account, payment, and service limits still apply"]
     ALERTCHECK -- "No" --> HARDCHECK{"Any applicable hard budget?"}
-    HARDCHECK -- "Yes; all cover charge" --> METERED["Accept projected split<br/>Usage continues at $0.01 per AI credit"]
-    HARDCHECK -- "No configured budget" --> NOBUDGET["Accept projected split<br/>No cap from configured spending budgets<br/>Other account, payment, and service limits still apply"]
+    HARDCHECK -- "Yes; all cover charge" --> METERED["AI-credit funding permitted<br/>for projected split at $0.01 per AI credit"]
+    HARDCHECK -- "No configured budget" --> NOBUDGET["AI-credit funding permitted for projected split<br/>No cap from configured spending budgets<br/>Other account, payment, and service limits still apply"]
 
     BLOCKULB --> STILLWORKS["Completions and next edit suggestions still work"]
     BLOCKCCPOOL --> STILLWORKS
@@ -81,7 +85,7 @@ flowchart TD
     classDef danger fill:#ffebe9,stroke:#cf222e,color:#4a1116,stroke-width:2px;
     classDef paid fill:#eaf2ff,stroke:#0969da,color:#0a3069,stroke-width:2px;
     class FEATURE,PLAN,INDPLAN,INCCHECK,INDCHOICE,INDELIGIBLE,INDENFORCEMENT,INDBUDGET,ULB,ULBCHECK,CCPOOL,CCCOVER,POOLCOVER,PAIDPOLICY,SCOPE,LIMIT,ALERTCHECK,HARDCHECK decision;
-    class FREEFEATURE,INDINCLUDED,POOL,SERVED,STILLWORKS success;
+    class FREEFEATURE,INDINCLUDED,POOL,FUNDING,STILLWORKS success;
     class BLOCKIND,BLOCKULB,BLOCKCCPOOL,BLOCKPOOL,BLOCKBUDGET danger;
     class INDALERT,INDNOBUDGET,INDPAID,CCBUDGET,ORGBUDGET,ENTBUDGET,ALERTMETERED,METERED,NOBUDGET paid;
 ```
@@ -89,7 +93,8 @@ flowchart TD
 ## Precedence summary
 
 ```text
-AI-credit feature
+prerequisite access, model, pricing, and workload-costing decisions
+  -> AI-credit feature
   -> billing model and billed identity
   -> licensing source and resolved cost-center attribution
   -> effective ULB (individual > cost center > universal)
@@ -99,8 +104,16 @@ AI-credit feature
   -> every applicable hard spending limit
   -> alert-only or missing spending-budget result
   -> accept and allocate only after every applicable gate permits the request
-  -> served, metered, or blocked
+  -> AI-credit funding permitted or blocked
 ```
+
+## Boundaries
+
+- This financial subflow does not evaluate or guarantee task execution. Access, runtime, model availability and eligibility, effective pricing, and workload costing precede it.
+- GitHub Actions usage and spending are a separate meter evaluated after AI-credit economics where applicable.
+- Organization-paid code reviews for users without a Copilot license can use special attribution outside the ordinary included-pool and ULB path.
+- Compass supports its scoped Business and Enterprise September scenarios and workloads. The individual and legacy branches are context only, not implemented Compass paths.
+- Indeterminate, waiting, soft-stop, partially simulated, and unpriced outcomes remain Engine possibilities outside this compact financial subflow.
 
 Resolve cost-center attribution once from the billed identity and licensing source: direct user assignment, then enterprise-team assignment, then the organization granting the license. Use that same resolved identity for ULB, included-control, spending-budget, and enterprise-exclusion applicability.
 
